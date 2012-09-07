@@ -1,19 +1,14 @@
-README
-=======
+coursera-dl
+===========
 
-A python script for archiving content from coursera.org for offline reference. Originally forked from https://github.com/abhirama/coursera-download but significantly cleaned up and enhanced. 
-
-Status
-------
-
-Should pretty much work as expected, code could still use some further cleanup, documentation and polish.
+A simple python script & class for archiving content from coursera.org for offline reference. Originally forked from https://github.com/abhirama/coursera-download but significantly cleaned up and enhanced.
 
 Usage
 -----
 
-See: python download.py -h
+See: python coursera-dl.py -h
 
 Example usage:
 
-python download.py -u myusername -p mypassword -d /my/coursera/courses algoclass2012
+python coursera-dl.py -u myusername -p mypassword -d /my/coursera/courses/ algoclass2012
 
