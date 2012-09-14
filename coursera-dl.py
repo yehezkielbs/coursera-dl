@@ -89,6 +89,9 @@ class CourseraDownloader(object):
 
                 # for each resource of that lecture (slides, pdf, ...)
                 for href in hrefs:
+                    #if href.find('i',{'class':'icon-info-sign'}):
+                    #    # skip info links (e.g., to wikipedia, etc)
+                    #    continue
                     resourceLinks.append(href['href'])
 
                 weekClasses[className] = resourceLinks
@@ -104,16 +107,12 @@ class CourseraDownloader(object):
         """Download the given url to the given folder"""
         r = self.browser.open(url)
 
-        if (CourseraDownloader.isHtml(r.info())):
-            print url, ' - is not downloadable'
-            return
-
         fileName = sanitiseFileName(CourseraDownloader.getFileName(r.info()))
         if not fileName:
             fileName = CourseraDownloader.getFileNameFromURL(url)
 
         if os.path.exists(fileName):
-            print "  -" + fileName + " already exists, skipping"
+            print "    - already exists, skipping"
         else:
             self.browser.retrieve(url,fileName)
 
@@ -132,12 +131,15 @@ class CourseraDownloader(object):
         target_dir = os.path.abspath(os.path.join(dest_dir,cname))
         print "* " + cname + " will be downloaded to " + target_dir
 
-        for weeklyTopic in weeklyTopics:
+        for j,weeklyTopic in enumerate(weeklyTopics,start=1):
             if weeklyTopic not in allClasses:
                 #print 'Weekly topic not in all classes:', weeklyTopic
                 continue
 
-            d = os.path.join(target_dir,weeklyTopic)
+            # ensure a numeric prefix in the week directory names to ensure
+            # chronological ordering
+            weekdir = str(j).zfill(2) + " - " + weeklyTopic
+            d = os.path.join(target_dir,weekdir)
             if not os.path.exists(d): os.makedirs(d)
             os.chdir(d)
 
@@ -150,12 +152,13 @@ class CourseraDownloader(object):
 
                 classResources = weekClasses[className]
 
-                # the directory name is the class name but prefix it with a counter
-                # so the chronological order of classes is not lost
+                # ensure chronological ordering of the classes within a week
                 dirName = str(i).zfill(2) + " - " + className
 
                 if not os.path.exists(dirName): os.makedirs(dirName)
                 os.chdir(dirName)
+
+                print "  - Downloading resources for " + className
 
                 for classResource in classResources:
                     if not isValidURL(classResource):
@@ -167,8 +170,11 @@ class CourseraDownloader(object):
                             print "  -" + classResource, ' - is not a valid url'
                             continue
 
-                    print '  - Downloading ', classResource
-                    self.download(classResource, dirName)
+                    try:
+                       #print '  - Downloading ', classResource
+                       self.download(classResource, dirName)
+                    except Exception as e:
+                       print "    - failed: ",classResource,e
 
                 os.chdir('..')
             os.chdir('..')
@@ -191,40 +197,23 @@ class CourseraDownloader(object):
             return '' 
 
     @staticmethod
-    def isTextFile(fileName):
-        splits = fileName.split('.')
-        extension = splits[len(splits) - 1]
-        if extension.lower() == 'txt':
-            return True
-
-        return False
-
-    @staticmethod
-    def getContentLength(header):
-        try:
-            return int(header['Content-Length'])
-        except Exception:
-            return 0 
-
-    @staticmethod
-    def isHtml(header):
-        try:
-            return header['Content-Type'] == 'text/html'
-        except Exception:
-            return False
-
-    @staticmethod
     def getFileNameFromURL(url):
-        splits = url.split('/')    
+        splits = url.split('/')
         splits.reverse()
         splits = urllib.unquote(splits[0])
         #Seeing slash in the unquoted fragment
         splits = splits.split('/')
-        return splits[len(splits) - 1]
+        fname = splits[len(splits) - 1]
+
+        # add an extension if none
+        ext = os.path.splitext(fname)[1]
+        if not ext: fname += ".html"
+
+        return fname
 
 
 def sanitiseFileName(fileName):
-    return re.sub('[:\?\\\\/]', '', fileName).strip()
+    return re.sub('[:\?\\\\/<>\*]', '', fileName).strip()
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
