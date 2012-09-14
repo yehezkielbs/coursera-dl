@@ -1,12 +1,8 @@
 import re
-import cookielib
-import urllib2
 import urllib
 import argparse
-import pprint
 import os
-import httplib
-import sys
+from mechanize import Browser
 from bs4 import BeautifulSoup
 
 class CourseraDownloader(object):
@@ -18,34 +14,43 @@ class CourseraDownloader(object):
     heavily modified since.
     """
 
-    LOGIN_URL = 'https://www.coursera.org/maestro/api/user/login'
-    REDIRECT_URL = 'https://class.coursera.org/{0}/auth/auth_redirector?type=login&subtype=normal&email=&visiting=%2F{0}%2Flecture%2Findex&minimal=true'
+    HOME_URL = 'http://class.coursera.org/%s/class/index'
+    LECTURE_URL = 'http://class.coursera.org/%s/lecture/index'
+    LOGIN_URL ='http://class.coursera.org/%s/auth/auth_redirector?type=login&subtype=normal'
 
     def __init__(self,username,password):
         self.username = username
         self.password = password
 
-        cj = cookielib.CookieJar()
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+        self.browser = Browser()
+        self.browser.set_handle_robots(False)
 
-    def login(self):
-        formParams = {
-            'email_address': self.username,
-            'password': self.password,
-        }
+    def login(self,course_name):
+        print "* Authenticating..."
 
-        formParams = urllib.urlencode(formParams)
-        self.opener.open(CourseraDownloader.LOGIN_URL, formParams)
+        # open the course login page
+        page = self.browser.open(self.LOGIN_URL % course_name)
 
-        print "* Successfully logged in as user " + self.username
+        # check if we are already logged in by checking for a password field
+        bs = BeautifulSoup(page)
+        pwdfield = bs.findAll("input",{"id":"password_login"})
+
+        if pwdfield:
+            self.browser.form = self.browser.forms().next()
+            self.browser['email'] = self.username
+            self.browser['password'] = self.password
+            self.browser.submit()
+        else:
+            # no login form, already logged in
+            print "* Already logged in"
 
     def course_name_from_url(self,course_url):
         """Given the course URL, return the name, e.g., algo2012-p2"""
         return course_url.split('/')[3]
 
-    def course_url_from_name(self,course_name):
+    def lecture_url_from_name(self,course_name):
         """Given the name of a course, return the video lecture url"""
-        return "https://class.coursera.org/{0}/lecture/index".format(course_name)
+        return self.LECTURE_URL % course_name
 
     def get_downloadable_content(self,course_url):
         """Given the video lecture URL of the course, return a list of all
@@ -54,11 +59,7 @@ class CourseraDownloader(object):
         print "* Collecting downloadable content from " + course_url
 
         # get the course name, and redirect to the course lecture page
-        course_name = self.course_name_from_url(course_url)
-        u = CourseraDownloader.REDIRECT_URL.format(course_name)
-        self.opener.open(u)
-        r = self.opener.open(course_url)
-        vidpage = r.read()
+        vidpage = self.browser.open(course_url)
 
         # extract the weekly classes
         soup = BeautifulSoup(vidpage)
@@ -101,42 +102,29 @@ class CourseraDownloader(object):
 
     def download(self, url, folder):
         """Download the given url to the given folder"""
-        r = self.opener.open(url)
+        r = self.browser.open(url)
 
-        if (CourseraDownloader.isHtml(r.headers)):
+        if (CourseraDownloader.isHtml(r.info())):
             print url, ' - is not downloadable'
             return
 
-        #print r.headers.items()
-
-        contentLength = CourseraDownloader.getContentLength(r.headers) 
-        if not contentLength:
-            contentLength = 16 * 1024
-
-        fileName = sanitiseFileName(CourseraDownloader.getFileName(r.headers))
+        fileName = sanitiseFileName(CourseraDownloader.getFileName(r.info()))
         if not fileName:
             fileName = CourseraDownloader.getFileNameFromURL(url)
 
         if os.path.exists(fileName):
             print "  -" + fileName + " already exists, skipping"
         else:
-            if (CourseraDownloader.isTextFile(fileName)):
-                mode = 'w'
-            else:
-                mode = "wb"
+            self.browser.retrieve(url,fileName)
 
-            with open(fileName, mode) as fp:
-              while True:
-                chunk = r.read(contentLength)
-                if not chunk: 
-                    break
-                fp.write(chunk)
+    def download_course(self,cname,dest_dir="."):
+        """Download all the contents of the course to the given destination directory (defaults to .)"""
 
-    def download_course(self,course_url,dest_dir="."):
-        """Download all the contents of the course (denoted by the url to its
-        video page) to the given destination directory (defaults to .)"""
+        # Ensure we are logged in
+        self.login(cname)
 
-        cname = self.course_name_from_url(course_url)
+        # get the lecture url
+        course_url = self.lecture_url_from_name(cname)
 
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
         print '* Got all downloadable content for ' + cname
@@ -179,7 +167,7 @@ class CourseraDownloader(object):
                             print "  -" + classResource, ' - is not a valid url'
                             continue
 
-                    print '  - Downloading resource - ', classResource
+                    print '  - Downloading ', classResource
                     self.download(classResource, dirName)
 
                 os.chdir('..')
@@ -300,18 +288,14 @@ if __name__ == '__main__':
     parser.add_argument("-u", dest='username', type=str, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='target_dir', type=str, default=".", help='destination directory where everything will be saved')
-    parser.add_argument('course_url', metavar='<course lecture page url or course name (can be found in the url)>', type=str, help='course lecture page url or name')
+    parser.add_argument('course_names', nargs="+", metavar='<course name>',
+                        type=str, help='one or more course names (from the url)')
     args = parser.parse_args()
 
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password)
 
-    # authenticate
-    d.login()
-
-    # was the course name or url passed>
-    curl = args.course_url if args.course_url.startswith("http") else d.course_url_from_name(args.course_url)
-
     # download the content
-    d.download_course(curl,dest_dir=args.target_dir)
+    for cn in args.course_names:
+        d.download_course(cn,dest_dir=args.target_dir)
 
