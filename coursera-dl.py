@@ -2,6 +2,7 @@ import re
 import urllib
 import argparse
 import os
+import errno
 from mechanize import Browser
 from bs4 import BeautifulSoup
 
@@ -17,6 +18,7 @@ class CourseraDownloader(object):
     HOME_URL = 'http://class.coursera.org/%s/class/index'
     LECTURE_URL = 'http://class.coursera.org/%s/lecture/index'
     LOGIN_URL ='http://class.coursera.org/%s/auth/auth_redirector?type=login&subtype=normal'
+    QUIZ_URL = 'http://class.coursera.org/%s/quiz/index'
 
     def __init__(self,username,password):
         self.username = username
@@ -112,12 +114,13 @@ class CourseraDownloader(object):
             fileName = CourseraDownloader.getFileNameFromURL(url)
 
         if os.path.exists(fileName):
-            print "    - already exists, skipping"
+            pass
+            #print "    - already exists, skipping"
         else:
             self.browser.retrieve(url,fileName)
 
     def download_course(self,cname,dest_dir="."):
-        """Download all the contents of the course to the given destination directory (defaults to .)"""
+        """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
 
         # Ensure we are logged in
         self.login(cname)
@@ -131,6 +134,15 @@ class CourseraDownloader(object):
         target_dir = os.path.abspath(os.path.join(dest_dir,cname))
         print "* " + cname + " will be downloaded to " + target_dir
 
+        # start off with downloading the quizzes & homeworks
+        for qt in ['quiz','homework']:
+            print "  - Downloading the '%s' quizzes" % qt
+            try:
+                self.download_quizzes(cname,target_dir,quiz_type=qt)
+            except Exception as e:
+                print "  - Failed %s" % e
+
+        # now download the actual content (video's, lecture notes, ...)
         for j,weeklyTopic in enumerate(weeklyTopics,start=1):
             if weeklyTopic not in allClasses:
                 #print 'Weekly topic not in all classes:', weeklyTopic
@@ -179,6 +191,39 @@ class CourseraDownloader(object):
                 os.chdir('..')
             os.chdir('..')
 
+    def download_quizzes(self,course,target_dir,quiz_type="quiz"):
+        """Download each of the quizzes as separate html files, the quiz type is
+        typically quiz or homework"""
+
+        # extract the list of all quizzes
+        qurl = (self.QUIZ_URL + "?quiz_type=" + quiz_type) % course
+        p = self.browser.open(qurl)
+        bs = BeautifulSoup(p)
+
+        qlist = bs.find('div',{'class':'item_list'})
+        qurls = [q['href'].replace('/start?','/attempt?') for q in qlist.findAll('a',{'class':'btn primary'})]
+        titles = [t.string for t in qlist.findAll('h4')]
+
+        # ensure the target directory exists
+        dir = os.path.join(target_dir,quiz_type)
+
+        try:
+            os.makedirs(dir)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else: raise
+
+        # download each one
+        for i,it in enumerate(zip(qurls,titles),start=1):
+            q,t = it
+            fname = os.path.join(dir,str(i).zfill(2) + " - " + sanitiseFileName(t) + ".html")
+            if os.path.exists(fname):
+                pass
+                #print "  - already exists, skipping"
+            else:
+                self.browser.retrieve(q,fname)
+
     @staticmethod
     def extractFileName(contentDispositionString):
         #print contentDispositionString
@@ -210,7 +255,6 @@ class CourseraDownloader(object):
         if not ext: fname += ".html"
 
         return fname
-
 
 def sanitiseFileName(fileName):
     return re.sub('[:\?\\\\/<>\*]', '', fileName).strip()
@@ -283,7 +327,7 @@ if __name__ == '__main__':
 
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password)
-
+    
     # download the content
     for cn in args.course_names:
         d.download_course(cn,dest_dir=args.target_dir)
