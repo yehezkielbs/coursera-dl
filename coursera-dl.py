@@ -15,10 +15,11 @@ class CourseraDownloader(object):
     heavily modified since.
     """
 
-    HOME_URL = 'http://class.coursera.org/%s/class/index'
-    LECTURE_URL = 'http://class.coursera.org/%s/lecture/index'
-    LOGIN_URL ='http://class.coursera.org/%s/auth/auth_redirector?type=login&subtype=normal'
-    QUIZ_URL = 'http://class.coursera.org/%s/quiz/index'
+    BASE_URL =    'http://class.coursera.org/%s'
+    HOME_URL =    BASE_URL + '/class/index'
+    LECTURE_URL = BASE_URL + '/lecture/index'
+    LOGIN_URL =   BASE_URL + '/auth/auth_redirector?type=login&subtype=normal'
+    QUIZ_URL =    BASE_URL + '/quiz/index'
 
     def __init__(self,username,password):
         self.username = username
@@ -105,19 +106,22 @@ class CourseraDownloader(object):
 
         return (weeklyTopics, allClasses)
 
-    def download(self, url, folder):
+    def download(self, url, target_fname=None):
         """Download the given url to the given folder"""
         r = self.browser.open(url)
 
-        fileName = sanitiseFileName(CourseraDownloader.getFileName(r.info()))
+        fileName = target_fname or sanitiseFileName(CourseraDownloader.getFileName(r.info()))
         if not fileName:
             fileName = CourseraDownloader.getFileNameFromURL(url)
-
+        
         if os.path.exists(fileName):
             pass
             #print "    - already exists, skipping"
         else:
-            self.browser.retrieve(url,fileName)
+            try:
+                self.browser.retrieve(url,fileName)
+            except Exception as e:
+                print "Failed to download url %s to %s: %s" % (url,folder,e)
 
     def download_course(self,cname,dest_dir="."):
         """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
@@ -133,8 +137,13 @@ class CourseraDownloader(object):
 
         target_dir = os.path.abspath(os.path.join(dest_dir,cname))
         print "* " + cname + " will be downloaded to " + target_dir
-
-        # start off with downloading the quizzes & homeworks
+        
+        # download the standard pages
+        print "  - Downloading lecture/syllabus pages"
+        self.download(course_url,target_fname=os.path.join(target_dir,"lectures.html"))
+	#self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
+        
+        # download the quizzes & homeworks
         for qt in ['quiz','homework']:
             print "  - Downloading the '%s' quizzes" % qt
             try:
@@ -184,7 +193,7 @@ class CourseraDownloader(object):
 
                     try:
                        #print '  - Downloading ', classResource
-                       self.download(classResource, dirName)
+                       self.download(classResource)
                     except Exception as e:
                        print "    - failed: ",classResource,e
 
