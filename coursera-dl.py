@@ -121,7 +121,7 @@ class CourseraDownloader(object):
             try:
                 self.browser.retrieve(url,fileName)
             except Exception as e:
-                print "Failed to download url %s to %s: %s" % (url,folder,e)
+                print "Failed to download url %s to %s: %s" % (url,target_fname,e)
 
     def download_course(self,cname,dest_dir="."):
         """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
