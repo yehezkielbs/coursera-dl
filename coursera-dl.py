@@ -107,7 +107,7 @@ class CourseraDownloader(object):
         return (weeklyTopics, allClasses)
 
     def download(self, url, target_fname=None):
-        """Download the given url to the given folder"""
+        """Download the url to the given filename"""
         r = self.browser.open(url)
 
         fileName = target_fname or sanitiseFileName(CourseraDownloader.getFileName(r.info()))
