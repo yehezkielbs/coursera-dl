@@ -134,8 +134,13 @@ class CourseraDownloader(object):
 
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
         print '* Got all downloadable content for ' + cname
-
+    
         target_dir = os.path.abspath(os.path.join(dest_dir,cname))
+        
+        # ensure the target dir exists
+        if not os.path.exists(target_dir):
+            os.mkdir(target_dir)
+    
         print "* " + cname + " will be downloaded to " + target_dir
         
         # download the standard pages
@@ -144,12 +149,12 @@ class CourseraDownloader(object):
 	#self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
         
         # download the quizzes & homeworks
-        for qt in ['quiz','homework']:
-            print "  - Downloading the '%s' quizzes" % qt
-            try:
-                self.download_quizzes(cname,target_dir,quiz_type=qt)
-            except Exception as e:
-                print "  - Failed %s" % e
+        #for qt in ['quiz','homework']:
+        #    print "  - Downloading the '%s' quizzes" % qt
+        #    try:
+        #        self.download_quizzes(cname,target_dir,quiz_type=qt)
+        #    except Exception as e:
+        #        print "  - Failed %s" % e
 
         # now download the actual content (video's, lecture notes, ...)
         for j,weeklyTopic in enumerate(weeklyTopics,start=1):
