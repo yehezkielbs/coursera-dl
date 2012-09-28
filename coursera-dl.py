@@ -46,6 +46,7 @@ class CourseraDownloader(object):
         else:
             # no login form, already logged in
             print "* Already logged in"
+	
 
     def course_name_from_url(self,course_url):
         """Given the course URL, return the name, e.g., algo2012-p2"""
@@ -58,6 +59,8 @@ class CourseraDownloader(object):
     def get_downloadable_content(self,course_url):
         """Given the video lecture URL of the course, return a list of all
         downloadable resources."""
+
+        cname = self.course_name_from_url(course_url)
 
         print "* Collecting downloadable content from " + course_url
 
@@ -95,10 +98,22 @@ class CourseraDownloader(object):
                     #if href.find('i',{'class':'icon-info-sign'}):
                     #    # skip info links (e.g., to wikipedia, etc)
                     #    continue
-                    resourceLinks.append(href['href'])
-
+                    resourceLinks.append( (href['href'],None) )
+ 
+                # check if the video is included in the resources, if not download it separately 
+                hasvid = [x for x,_ in resourceLinks if x.find('.mp4') > 0]
+                if not hasvid:
+                    ll = li.find('a',{'class':'lecture-link'})
+                    lurl = ll['data-lecture-view-link']
+                    p = self.browser.open(lurl)
+                    bb = BeautifulSoup(p)
+                    vurl = bb.find('source',type="video/mp4")['src']
+                    # build the matching filename
+                    fn = className + ".mp4"
+                    resourceLinks.append( (vurl,fn) )
+                     
                 weekClasses[className] = resourceLinks
-
+                  
             # keep track of the list of classNames in the order they appear in the html
             weekClasses['classNames'] = classNames
 
@@ -121,7 +136,7 @@ class CourseraDownloader(object):
             try:
                 self.browser.retrieve(url,fileName)
             except Exception as e:
-                print "Failed to download url %s to %s: %s" % (url,target_fname,e)
+                print "Failed to download url %s to %s: %s" % (url,fileName,e)
 
     def download_course(self,cname,dest_dir="."):
         """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
@@ -142,7 +157,10 @@ class CourseraDownloader(object):
             os.mkdir(target_dir)
     
         print "* " + cname + " will be downloaded to " + target_dir
-        
+
+        # ensure the target directory exists
+        if not os.path.exists(target_dir): os.makedirs(target_dir)
+        	       
         # download the standard pages
         print "  - Downloading lecture/syllabus pages"
         self.download(course_url,target_fname=os.path.join(target_dir,"lectures.html"))
@@ -186,7 +204,7 @@ class CourseraDownloader(object):
 
                 print "  - Downloading resources for " + className
 
-                for classResource in classResources:
+                for classResource,tfname in classResources:
                     if not isValidURL(classResource):
                         absoluteURLGen = AbsoluteURLGen(course_url)
                         classResource = absoluteURLGen.get_absolute(classResource)
@@ -198,7 +216,7 @@ class CourseraDownloader(object):
 
                     try:
                        #print '  - Downloading ', classResource
-                       self.download(classResource)
+                       self.download(classResource,target_fname=tfname)
                     except Exception as e:
                        print "    - failed: ",classResource,e
 
