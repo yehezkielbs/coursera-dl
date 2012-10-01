@@ -12,3 +12,4 @@ Example usage:
 
 python coursera-dl.py -u myusername -p mypassword -d /my/coursera/courses/ algo-2012-001 ml-2012-002
 
+Note: ensure you have accepted the honor code of the class before using this script (happens the very first time you go to the class page).
