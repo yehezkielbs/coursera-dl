@@ -289,7 +289,7 @@ class CourseraDownloader(object):
         return fname
 
 def sanitiseFileName(fileName):
-    return re.sub('[:\?\\\\/<>\*]', '', fileName).strip()
+    return re.sub('[:\?\\\\/<>\*"]', '', fileName).strip()
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
