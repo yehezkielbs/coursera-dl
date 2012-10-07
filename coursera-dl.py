@@ -29,7 +29,7 @@ class CourseraDownloader(object):
         self.browser.set_handle_robots(False)
 
     def login(self,course_name):
-        print "* Authenticating..."
+        print "* Authenticating as %s..." % self.username
 
         # open the course login page
         page = self.browser.open(self.LOGIN_URL % course_name)
@@ -124,19 +124,33 @@ class CourseraDownloader(object):
     def download(self, url, target_fname=None):
         """Download the url to the given filename"""
         r = self.browser.open(url)
-
-        fileName = target_fname or sanitiseFileName(CourseraDownloader.getFileName(r.info()))
-        if not fileName:
-            fileName = CourseraDownloader.getFileNameFromURL(url)
         
-        if os.path.exists(fileName):
-            pass
-            #print "    - already exists, skipping"
-        else:
-            try:
-                self.browser.retrieve(url,fileName)
-            except Exception as e:
-                print "Failed to download url %s to %s: %s" % (url,fileName,e)
+        # get the headers
+        headers = r.info()
+
+        # get the content length (if present)
+        clen = int(headers['Content-Length']) if 'Content-Length' in headers else None
+ 
+        # the absolute path
+        filepath = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers))
+        if not filepath:
+            filepath = CourseraDownloader.getFileNameFromURL(url)
+
+        # get just the filename        
+        fname = os.path.split(filepath)[1]
+
+        dl = True
+        if os.path.exists(filepath): 
+            if clen and clen != os.path.getsize(filepath):
+                print '    - size mismatch for "%s", downloading again' % fname
+            else:
+            	print '    - "%s" already exists, skipping' % fname
+                dl = False
+ 
+        try:
+            if dl: self.browser.retrieve(url,filepath)
+        except Exception as e:
+            print "Failed to download url %s to %s: %s" % (url,filepath,e)
 
     def download_course(self,cname,dest_dir="."):
         """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
@@ -163,6 +177,7 @@ class CourseraDownloader(object):
         	       
         # download the standard pages
         print "  - Downloading lecture/syllabus pages"
+        self.download(self.HOME_URL % cname,target_fname=os.path.join(target_dir,"index.html"))
         self.download(course_url,target_fname=os.path.join(target_dir,"lectures.html"))
 	#self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
         
