@@ -11,8 +11,7 @@ class CourseraDownloader(object):
     Class to download content (videos, lecture notes, ...) from coursera.org for
     use offline.
 
-    Originally forked from: https://github.com/abhirama/coursera-download but
-    heavily modified since.
+    https://github.com/dgorissen/coursera-dl
     """
 
     BASE_URL =    'http://class.coursera.org/%s'
@@ -360,9 +359,7 @@ class AbsoluteURLGen(object):
                     url = url[2:]
                 return self.base + url
 
-if __name__ == '__main__':
-    """Main function, call with -h for usage information"""
-
+def main():
     # parse the commandline arguments
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
     parser.add_argument("-u", dest='username', type=str, help='coursera.org username')
@@ -374,8 +371,10 @@ if __name__ == '__main__':
 
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password)
-    
+
     # download the content
     for cn in args.course_names:
         d.download_course(cn,dest_dir=args.target_dir)
 
+if __name__ == '__main__':
+    main()

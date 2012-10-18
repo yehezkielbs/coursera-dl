@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
-setup(name='coursera-dl',
-            version='1.0',
-            description='Coursera downloader',
-            author='Dirk Gorissen',
-            author_email='dgorissen@gmail.com',
-            url='https://github.com/dgorissen/coursera-dl',
-            script=["coursera-dl.py"]
-            requires=['argparse', 'beautifulsoup4'],
+setup(name="coursera-dl",
+            version="1.1.1",
+            description="Download coursera.org class videos and resources",
+            long_description=open("README.md").read(),
+            author="Dirk Gorissen",
+            author_email="dgorissen@gmail.com",
+            url="https://github.com/dgorissen/coursera-dl",
+            license="GPLv3",
+            packages=["courseradownloader"],
+            entry_points = { "console_scripts" : [ "coursera-dl = courseradownloader.courseradownloader:main"]},
+            install_requires=["mechanize","beautifulsoup4"],
            )
 
