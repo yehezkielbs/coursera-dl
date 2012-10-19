@@ -16,6 +16,8 @@ Then simply run: pip install coursera-dl
 This will create a coursera-dl script in /usr/local/bin (linux) or
 c:\\Pytohon2.7\\Scripts (windows)
 
+(to upgrade use pip install --upgrade)
+
 Usage
 -----
 
