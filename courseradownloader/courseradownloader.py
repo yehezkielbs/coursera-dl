@@ -41,7 +41,14 @@ class CourseraDownloader(object):
             self.browser.form = self.browser.forms().next()
             self.browser['email'] = self.username
             self.browser['password'] = self.password
-            self.browser.submit()
+            r = self.browser.submit()
+
+            # check that authentication actually succeeded
+            bs2 = BeautifulSoup(r.read())
+            title = bs2.title.string
+            if title.find("Login Failed") > 0:
+                raise Exception("Failed to authenticate as %s" % (self.username,))
+ 
         else:
             # no login form, already logged in
             print "* Already logged in"
@@ -140,7 +147,7 @@ class CourseraDownloader(object):
 
         dl = True
         if os.path.exists(filepath): 
-            if clen and clen != os.path.getsize(filepath):
+            if clen > 0 and clen != os.path.getsize(filepath):
                 print '    - size mismatch for "%s", downloading again' % fname
             else:
             	print '    - "%s" already exists, skipping' % fname
