@@ -135,7 +135,7 @@ class CourseraDownloader(object):
         headers = r.info()
 
         # get the content length (if present)
-        clen = int(headers['Content-Length']) if 'Content-Length' in headers else None
+        clen = int(headers['Content-Length']) if 'Content-Length' in headers else -1 
  
         # the absolute path
         filepath = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers))
@@ -146,13 +146,26 @@ class CourseraDownloader(object):
         fname = os.path.split(filepath)[1]
 
         dl = True
-        if os.path.exists(filepath): 
-            if clen > 0 and clen != os.path.getsize(filepath):
-                print '    - size mismatch for "%s", downloading again' % fname
+        if os.path.exists(filepath):
+            if clen > 0: 
+                fs = os.path.getsize(filepath)
+                delta = clen - fs
+
+                # all we know is that the current filesize may be shorter than it should be and the content length may be incorrect
+                # overwrite the file if the reported content length is bigger than what we have already by at least k bytes (arbitrary)
+
+                # TODO this is still not foolproof as the fundamental problem is that the content length cannot be trusted
+                # so this really needs to be avoided and replaced by something else, eg., explicitly storing what downloaded correctly
+                if delta > 2:
+                    print '    - "%s" seems incomplete, downloading again' % fname
+                else:
+            	    print '    - "%s" already exists, skipping' % fname
+                    dl = False
             else:
-            	print '    - "%s" already exists, skipping' % fname
+                # missing or invalid content length
+                # assume all is ok...
                 dl = False
- 
+
         try:
             if dl: self.browser.retrieve(url,filepath)
         except Exception as e:
