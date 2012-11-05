@@ -3,6 +3,7 @@ import urllib
 import argparse
 import os
 import errno
+import unicodedata
 from mechanize import Browser
 from bs4 import BeautifulSoup
 
@@ -117,9 +118,9 @@ class CourseraDownloader(object):
                     # build the matching filename
                     fn = className + ".mp4"
                     resourceLinks.append( (vurl,fn) )
-                     
+
                 weekClasses[className] = resourceLinks
-                  
+
             # keep track of the list of classNames in the order they appear in the html
             weekClasses['classNames'] = classNames
 
@@ -130,7 +131,7 @@ class CourseraDownloader(object):
     def download(self, url, target_fname=None):
         """Download the url to the given filename"""
         r = self.browser.open(url)
-        
+
         # get the headers
         headers = r.info()
 
@@ -142,7 +143,7 @@ class CourseraDownloader(object):
         if not filepath:
             filepath = CourseraDownloader.getFileNameFromURL(url)
 
-        # get just the filename        
+        # get just the filename
         fname = os.path.split(filepath)[1]
 
         dl = True
@@ -159,7 +160,7 @@ class CourseraDownloader(object):
                 if delta > 2:
                     print '    - "%s" seems incomplete, downloading again' % fname
                 else:
-            	    print '    - "%s" already exists, skipping' % fname
+                    print '    - "%s" already exists, skipping' % fname
                     dl = False
             else:
                 # missing or invalid content length
@@ -182,24 +183,24 @@ class CourseraDownloader(object):
 
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
         print '* Got all downloadable content for ' + cname
-    
+
         target_dir = os.path.abspath(os.path.join(dest_dir,cname))
-        
+
         # ensure the target dir exists
         if not os.path.exists(target_dir):
             os.mkdir(target_dir)
-    
+
         print "* " + cname + " will be downloaded to " + target_dir
 
         # ensure the target directory exists
         if not os.path.exists(target_dir): os.makedirs(target_dir)
-        	       
+
         # download the standard pages
-        print "  - Downloading lecture/syllabus pages"
+        print " - Downloading lecture/syllabus pages"
         self.download(self.HOME_URL % cname,target_fname=os.path.join(target_dir,"index.html"))
         self.download(course_url,target_fname=os.path.join(target_dir,"lectures.html"))
-	#self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
-        
+
+        # self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
         # download the quizzes & homeworks
         #for qt in ['quiz','homework']:
         #    print "  - Downloading the '%s' quizzes" % qt
@@ -223,6 +224,8 @@ class CourseraDownloader(object):
 
             weekClasses = allClasses[weeklyTopic]
             classNames = weekClasses['classNames']
+
+            print " - " + weeklyTopic
 
             for i,className in enumerate(classNames,start=1):
                 if className not in weekClasses:
@@ -323,7 +326,23 @@ class CourseraDownloader(object):
         return fname
 
 def sanitiseFileName(fileName):
-    return re.sub('[:\?\\\\/<>\*"]', '', fileName.encode('ascii','ignore')).strip()
+    # ensure a clean, valid filename (arg may be both str and unicode)
+    # (an alternative, and maybe better, approach is to use a whitelist)
+
+    # ensure a unicode string, problematic ascii chars will get removed
+    if isinstance(fileName,str):
+        fn = unicode(fileName,errors='ignore')
+    else:
+        fn = fileName
+
+    # normalize it
+    fn = unicodedata.normalize('NFKD',fn)
+
+    # encode it into ascii, again ignoring problematic chars
+    s = fn.encode('ascii','ignore')
+
+    # remove any problematic filename chars
+    return re.sub('[:\?\\\\/<>\*"]', '', s).strip()
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
