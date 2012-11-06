@@ -4,6 +4,7 @@ import argparse
 import os
 import errno
 import unicodedata
+import string
 from mechanize import Browser
 from bs4 import BeautifulSoup
 
@@ -341,8 +342,11 @@ def sanitiseFileName(fileName):
     # encode it into ascii, again ignoring problematic chars
     s = fn.encode('ascii','ignore')
 
+    # remove any non-printable chars that may have snuck through
+    s = filter(lambda x: x in string.printable, s)
+
     # remove any problematic filename chars
-    return re.sub('[:\?\\\\/<>\*"]', '', s).strip()
+    return re.sub('[:\?\\\\/<>\*\r\n]', '', s).strip()
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
