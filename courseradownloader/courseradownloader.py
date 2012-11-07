@@ -108,17 +108,23 @@ class CourseraDownloader(object):
                     #    continue
                     resourceLinks.append( (href['href'],None) )
  
-                # check if the video is included in the resources, if not download it separately 
+                # check if the video is included in the resources, if not, try
+                # do download it directly
                 hasvid = [x for x,_ in resourceLinks if x.find('.mp4') > 0]
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-lecture-view-link']
                     p = self.browser.open(lurl)
                     bb = BeautifulSoup(p)
-                    vurl = bb.find('source',type="video/mp4")['src']
-                    # build the matching filename
-                    fn = className + ".mp4"
-                    resourceLinks.append( (vurl,fn) )
+                    vobj = bb.find('source',type="video/mp4")
+
+                    if not vobj:
+                        print " Warning: Failed to find video for %s" %  className
+                    else:
+                        vurl = vobj['src']
+                        # build the matching filename
+                        fn = className + ".mp4"
+                        resourceLinks.append( (vurl,fn) )
 
                 weekClasses[className] = resourceLinks
 
@@ -328,7 +334,6 @@ class CourseraDownloader(object):
 
 def sanitiseFileName(fileName):
     # ensure a clean, valid filename (arg may be both str and unicode)
-    # (an alternative, and maybe better, approach is to use a whitelist)
 
     # ensure a unicode string, problematic ascii chars will get removed
     if isinstance(fileName,str):
@@ -342,11 +347,8 @@ def sanitiseFileName(fileName):
     # encode it into ascii, again ignoring problematic chars
     s = fn.encode('ascii','ignore')
 
-    # remove any non-printable chars that may have snuck through
-    s = filter(lambda x: x in string.printable, s)
-
-    # remove any problematic filename chars
-    return re.sub('[:\?\\\\/<>\*\r\n]', '', s).strip()
+    # remove any characters not in the whitelist
+    return re.sub('[^\w\-\(\)\[\]\., ]','',s).strip()
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
