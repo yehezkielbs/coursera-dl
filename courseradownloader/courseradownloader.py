@@ -408,7 +408,7 @@ class AbsoluteURLGen(object):
 def main():
     # parse the commandline arguments
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
-    parser.add_argument("-u", dest='username', type=str, help='coursera.org username')
+    parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='target_dir', type=str, default=".", help='destination directory where everything will be saved')
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
