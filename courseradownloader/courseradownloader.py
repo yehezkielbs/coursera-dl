@@ -5,6 +5,7 @@ import os
 import errno
 import unicodedata
 import string
+import getpass
 from mechanize import Browser
 from bs4 import BeautifulSoup
 
@@ -413,6 +414,9 @@ def main():
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names (from the url)')
     args = parser.parse_args()
+
+    if not args.password:
+        args.password = getpass.getpass()
 
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password)
