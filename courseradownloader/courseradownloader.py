@@ -4,7 +4,6 @@ import argparse
 import os
 import errno
 import unicodedata
-import string
 import getpass
 from mechanize import Browser
 from bs4 import BeautifulSoup
@@ -23,9 +22,15 @@ class CourseraDownloader(object):
     LOGIN_URL =   BASE_URL + '/auth/auth_redirector?type=login&subtype=normal'
     QUIZ_URL =    BASE_URL + '/quiz/index'
 
-    def __init__(self,username,password):
+    DEFAULT_PARSER = "lxml"
+
+    def __init__(self,username,password,parser=DEFAULT_PARSER):
+        """Requires your coursera username and password. 
+        You can also specify the parser to use (defaults to lxml), see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
+        """
         self.username = username
         self.password = password
+        self.parser = parser
 
         self.browser = Browser()
         self.browser.set_handle_robots(False)
@@ -37,7 +42,7 @@ class CourseraDownloader(object):
         page = self.browser.open(self.LOGIN_URL % course_name)
 
         # check if we are already logged in by checking for a password field
-        bs = BeautifulSoup(page)
+        bs = BeautifulSoup(page,self.parser)
         pwdfield = bs.findAll("input",{"id":"password_login"})
 
         if pwdfield:
@@ -47,7 +52,7 @@ class CourseraDownloader(object):
             r = self.browser.submit()
 
             # check that authentication actually succeeded
-            bs2 = BeautifulSoup(r.read())
+            bs2 = BeautifulSoup(r.read(),self.parser)
             title = bs2.title.string
             if title.find("Login Failed") > 0:
                 raise Exception("Failed to authenticate as %s" % (self.username,))
@@ -55,7 +60,7 @@ class CourseraDownloader(object):
         else:
             # no login form, already logged in
             print "* Already logged in"
-	
+
 
     def course_name_from_url(self,course_url):
         """Given the course URL, return the name, e.g., algo2012-p2"""
@@ -77,7 +82,7 @@ class CourseraDownloader(object):
         vidpage = self.browser.open(course_url)
 
         # extract the weekly classes
-        soup = BeautifulSoup(vidpage)
+        soup = BeautifulSoup(vidpage,self.parser)
         headers = soup.findAll("h3", { "class" : "list_header" })
 
         weeklyTopics = []
@@ -116,7 +121,7 @@ class CourseraDownloader(object):
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-lecture-view-link']
                     p = self.browser.open(lurl)
-                    bb = BeautifulSoup(p)
+                    bb = BeautifulSoup(p,self.parser)
                     vobj = bb.find('source',type="video/mp4")
 
                     if not vobj:
@@ -275,7 +280,7 @@ class CourseraDownloader(object):
         # extract the list of all quizzes
         qurl = (self.QUIZ_URL + "?quiz_type=" + quiz_type) % course
         p = self.browser.open(qurl)
-        bs = BeautifulSoup(p)
+        bs = BeautifulSoup(p,self.parser)
 
         qlist = bs.find('div',{'class':'item_list'})
         qurls = [q['href'].replace('/start?','/attempt?') for q in qlist.findAll('a',{'class':'btn primary'})]
@@ -405,21 +410,42 @@ class AbsoluteURLGen(object):
                     url = url[2:]
                 return self.base + url
 
+# is lxml available?
+def haslxml():
+    try:
+        import lxml
+        return True
+    except:
+        return False
+
 def main():
     # parse the commandline arguments
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
     parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='target_dir', type=str, default=".", help='destination directory where everything will be saved')
+    parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
+                        help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names (from the url)')
     args = parser.parse_args()
 
+    # check the parser
+    parser = args.parser
+    if parser == 'lxml' and not haslxml():
+        print "Warning: lxml not available, falling back to built-in 'html.parser' (see -q option), this may cause problems on Python < 2.7.3"
+        parser = 'html.parser'
+    else:
+        pass
+
+    print "HTML parser set to %s" % parser
+
+    # prompt the user for his password if not specified
     if not args.password:
         args.password = getpass.getpass()
 
     # instantiate the downloader class
-    d = CourseraDownloader(args.username,args.password)
+    d = CourseraDownloader(args.username,args.password,parser=parser)
 
     # download the content
     for cn in args.course_names:
