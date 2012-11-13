@@ -105,14 +105,9 @@ class CourseraDownloader(object):
 
                 hrefs = classResources.findAll('a')
 
-                resourceLinks = []
-
                 # for each resource of that lecture (slides, pdf, ...)
-                for href in hrefs:
-                    #if href.find('i',{'class':'icon-info-sign'}):
-                    #    # skip info links (e.g., to wikipedia, etc)
-                    #    continue
-                    resourceLinks.append( (href['href'],None) )
+                # (dont set a filename here, that will be inferred from the headers)
+                resourceLinks = [ (h['href'],None) for h in hrefs]
  
                 # check if the video is included in the resources, if not, try
                 # do download it directly
@@ -141,7 +136,7 @@ class CourseraDownloader(object):
 
         return (weeklyTopics, allClasses)
 
-    def download(self, url, target_fname=None):
+    def download(self, url, target_dir=".", target_fname=None):
         """Download the url to the given filename"""
         r = self.browser.open(url)
 
@@ -151,13 +146,9 @@ class CourseraDownloader(object):
         # get the content length (if present)
         clen = int(headers['Content-Length']) if 'Content-Length' in headers else -1 
  
-        # the absolute path
-        filepath = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers))
-        if not filepath:
-            filepath = CourseraDownloader.getFileNameFromURL(url)
-
-        # get just the filename
-        fname = os.path.split(filepath)[1]
+        # build the absolute path we are going to write to
+        fname = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers)) or CourseraDownloader.getFileNameFromURL(url)
+        filepath = os.path.join(target_dir,fname)
 
         dl = True
         if os.path.exists(filepath):
@@ -197,28 +188,30 @@ class CourseraDownloader(object):
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
         print '* Got all downloadable content for ' + cname
 
-        target_dir = os.path.abspath(os.path.join(dest_dir,cname))
+        course_dir = os.path.abspath(os.path.join(dest_dir,cname))
 
         # ensure the target dir exists
-        if not os.path.exists(target_dir):
-            os.mkdir(target_dir)
+        if not os.path.exists(course_dir):
+            os.mkdir(course_dir)
 
-        print "* " + cname + " will be downloaded to " + target_dir
+        print "* " + cname + " will be downloaded to " + course_dir
 
-        # ensure the target directory exists
-        if not os.path.exists(target_dir): os.makedirs(target_dir)
+        # ensure the course directory exists
+        if not os.path.exists(course_dir):
+            os.makedirs(course_dir)
 
         # download the standard pages
         print " - Downloading lecture/syllabus pages"
-        self.download(self.HOME_URL % cname,target_fname=os.path.join(target_dir,"index.html"))
-        self.download(course_url,target_fname=os.path.join(target_dir,"lectures.html"))
+        self.download(self.HOME_URL % cname,target_dir=course_dir,target_fname="index.html")
+        self.download(course_url,target_dir=course_dir,target_fname="lectures.html")
 
-        # self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_fname=os.path.join(target_dir,"syllabus.html"))
+        # commented out because of https://github.com/dgorissen/coursera-dl/issues/2
+        # self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_dir=course_dir,target_fname="syllabus.html")
         # download the quizzes & homeworks
         #for qt in ['quiz','homework']:
         #    print "  - Downloading the '%s' quizzes" % qt
         #    try:
-        #        self.download_quizzes(cname,target_dir,quiz_type=qt)
+        #        self.download_quizzes(cname,course_dir,quiz_type=qt)
         #    except Exception as e:
         #        print "  - Failed %s" % e
 
@@ -228,12 +221,12 @@ class CourseraDownloader(object):
                 #print 'Weekly topic not in all classes:', weeklyTopic
                 continue
 
-            # ensure a numeric prefix in the week directory names to ensure
-            # chronological ordering
-            weekdir = str(j).zfill(2) + " - " + weeklyTopic
-            d = os.path.join(target_dir,weekdir)
-            if not os.path.exists(d): os.makedirs(d)
-            os.chdir(d)
+            # ensure the week dir exists
+            # add a numeric prefix to the week directory name to ensure chronological ordering
+            wkdirname = str(j).zfill(2) + " - " + weeklyTopic
+            wkdir = os.path.join(course_dir,wkdirname)
+            if not os.path.exists(wkdir):
+                os.makedirs(wkdir)
 
             weekClasses = allClasses[weeklyTopic]
             classNames = weekClasses['classNames']
@@ -246,11 +239,11 @@ class CourseraDownloader(object):
 
                 classResources = weekClasses[className]
 
-                # ensure chronological ordering of the classes within a week
-                dirName = str(i).zfill(2) + " - " + className
-
-                if not os.path.exists(dirName): os.makedirs(dirName)
-                os.chdir(dirName)
+                # ensure the class dir exists
+                clsdirname = str(i).zfill(2) + " - " + className
+                clsdir = os.path.join(wkdir,clsdirname)
+                if not os.path.exists(clsdir): 
+                    os.makedirs(clsdir)
 
                 print "  - Downloading resources for " + className
 
@@ -266,12 +259,10 @@ class CourseraDownloader(object):
 
                     try:
                        #print '  - Downloading ', classResource
-                       self.download(classResource,target_fname=tfname)
+                       self.download(classResource,target_dir=clsdir,target_fname=tfname)
                     except Exception as e:
                        print "    - failed: ",classResource,e
 
-                os.chdir('..')
-            os.chdir('..')
 
     def download_quizzes(self,course,target_dir,quiz_type="quiz"):
         """Download each of the quizzes as separate html files, the quiz type is
@@ -423,7 +414,7 @@ def main():
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
     parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
-    parser.add_argument("-d", dest='target_dir', type=str, default=".", help='destination directory where everything will be saved')
+    parser.add_argument("-d", dest='dest_dir', type=str, default=".", help='destination directory where everything will be saved')
     parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
                         help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
@@ -449,7 +440,7 @@ def main():
 
     # download the content
     for cn in args.course_names:
-        d.download_course(cn,dest_dir=args.target_dir)
+        d.download_course(cn,dest_dir=args.dest_dir)
 
 if __name__ == '__main__':
     main()
