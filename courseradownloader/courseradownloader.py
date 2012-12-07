@@ -345,7 +345,16 @@ def sanitiseFileName(fileName):
     s = fn.encode('ascii','ignore')
 
     # remove any characters not in the whitelist
-    return re.sub('[^\w\-\(\)\[\]\., ]','',s).strip()
+    s = re.sub('[^\w\-\(\)\[\]\., ]','',s).strip()
+
+    # ensure it is within a sane maximum
+    max = 250
+
+    # split off extension, trim, and re-add the extension
+    fn,ext = os.path.splitext(s)
+    s = fn[:max-len(ext)] + ext
+
+    return s
 
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
