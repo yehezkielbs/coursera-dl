@@ -327,7 +327,7 @@ class CourseraDownloader(object):
         ext = os.path.splitext(fname)[1]
         if not ext: fname += ".html"
 
-        return fname
+        return sanitiseFileName(fname)
 
 def sanitiseFileName(fileName):
     # ensure a clean, valid filename (arg may be both str and unicode)
