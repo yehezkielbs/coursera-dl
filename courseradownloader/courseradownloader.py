@@ -83,16 +83,17 @@ class CourseraDownloader(object):
 
         # extract the weekly classes
         soup = BeautifulSoup(vidpage,self.parser)
-        headers = soup.findAll("h3", { "class" : "list_header" })
+        headers = soup.findAll("div", { "class" : "course-item-list-header" })
 
         weeklyTopics = []
         allClasses = {}
 
         # for each weekly class
         for header in headers:
-            ul = header.findNext('ul')
-            sanitisedHeaderName = sanitiseFileName(header.text)
+            h3 = header.findNext('h3')
+            sanitisedHeaderName = sanitiseFileName(h3.text)
             weeklyTopics.append(sanitisedHeaderName)
+            ul = header.next_sibling
             lis = ul.findAll('li')
             weekClasses = {}
 
@@ -101,7 +102,7 @@ class CourseraDownloader(object):
             for li in lis:
                 className = sanitiseFileName(li.a.text)
                 classNames.append(className)
-                classResources = li.find('div', {'class': 'item_resource'})
+                classResources = li.find('div', {'class':'course-lecture-item-resource'})
 
                 hrefs = classResources.findAll('a')
 
@@ -114,7 +115,7 @@ class CourseraDownloader(object):
                 hasvid = [x for x,_ in resourceLinks if x.find('.mp4') > 0]
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
-                    lurl = ll['data-lecture-view-link']
+                    lurl = ll['data-modal-iframe']
                     p = self.browser.open(lurl)
                     bb = BeautifulSoup(p,self.parser)
                     vobj = bb.find('source',type="video/mp4")
