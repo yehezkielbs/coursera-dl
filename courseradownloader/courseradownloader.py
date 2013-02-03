@@ -1,5 +1,6 @@
 import re
 import urllib
+from urlparse import urlsplit
 import argparse
 import os
 import errno
@@ -317,17 +318,30 @@ class CourseraDownloader(object):
 
     @staticmethod
     def getFileNameFromURL(url):
-        splits = url.split('/')
-        splits.reverse()
-        splits = urllib.unquote(splits[0])
-        #Seeing slash in the unquoted fragment
-        splits = splits.split('/')
-        fname = splits[len(splits) - 1]
+        # parse the url into its components
+        u = urlsplit(url)
+
+        # split the path into parts and unquote
+        parts = [urllib.unquote(x).strip() for x in u.path.split('/')]
+
+        # take the last component as filename
+        fname = parts[-1]
+        
+        # if empty, url ended with a trailing slash
+        # so join up the hostnam/path  and use that as a filename
+        if len(fname) < 1:
+           s = u.netloc + u.path[:-1]
+           fname = s.replace('/','_')
+        else:
+            # unquoting could have cuased slashes to appear again
+            # split and take the last element if so
+            fname = fname.split('/')[-1]
 
         # add an extension if none
         ext = os.path.splitext(fname)[1]
-        if not ext: fname += ".html"
-
+        if len(ext) < 1 or len(ext) > 5: fname += ".html"
+        
+        # remove any illegal chars and return
         return sanitiseFileName(fname)
 
 def sanitiseFileName(fileName):
