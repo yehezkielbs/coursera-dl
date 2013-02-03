@@ -25,7 +25,7 @@ class CourseraDownloader(object):
 
     DEFAULT_PARSER = "lxml"
 
-    def __init__(self,username,password,parser=DEFAULT_PARSER):
+    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER):
         """Requires your coursera username and password. 
         You can also specify the parser to use (defaults to lxml), see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
         """
@@ -34,6 +34,10 @@ class CourseraDownloader(object):
         self.parser = parser
 
         self.browser = Browser()
+        
+        if proxy:
+            self.browser.set_proxies({"http":proxy})
+
         self.browser.set_handle_robots(False)
 
     def login(self,course_name):
@@ -441,6 +445,7 @@ def main():
     parser.add_argument("-d", dest='dest_dir', type=str, default=".", help='destination directory where everything will be saved')
     parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
                         help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
+    parser.add_argument("-x", dest='proxy', type=str, default=None, help="proxy to use, e.g., foo.bar.com:3125")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names (from the url)')
     args = parser.parse_args()
@@ -460,7 +465,7 @@ def main():
         args.password = getpass.getpass()
 
     # instantiate the downloader class
-    d = CourseraDownloader(args.username,args.password,parser=parser)
+    d = CourseraDownloader(args.username,args.password,proxy=args.proxy,parser=parser)
 
     # download the content
     for cn in args.course_names:
