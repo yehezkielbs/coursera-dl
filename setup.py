@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name="coursera-dl",
-            version="1.2",
+            version="1.2.1",
             description="Download coursera.org class videos and resources",
             long_description=open("README.md").read(),
             author="Dirk Gorissen",
