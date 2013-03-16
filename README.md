@@ -6,7 +6,7 @@ coursera-dl
 
 A python package for archiving content from coursera.org (videos,
 lecture notes, quizzes, …) for offline reference. Originally forked from
-[https://github.com/abhirama/coursera-download][] but significantly
+[issue13][] but significantly
 cleaned up and enhanced.
 
 Installation
@@ -34,6 +34,7 @@ algo-2012-001 ml-2012-002
 Note: ensure you have accepted the honor code of the class before using
 this script (happens the very first time you go to the class page).
 
+  [issue13]: https://github.com/dgorissen/coursera-dl/issues/13
   [https://github.com/abhirama/coursera-download]: https://github.com/abhirama/coursera-download
   [Python]: http://www.python.org/download/
   [pip]: http://www.pip-installer.org/en/latest/installing.html
