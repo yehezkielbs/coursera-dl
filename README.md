@@ -1,3 +1,5 @@
+*update*: coursera has changed some things on their site which means coursera-dl temporarily no longer works. A fix in progress and can be followed here: [https://github.com/dgorissen/coursera-dl/issues/13][issue #13]
+
 coursera-dl
 ===========
 
