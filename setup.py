@@ -13,7 +13,7 @@ with open("requirements.txt") as f:
         if l: requirements.append(l)
 
 setup(name="coursera-dl",
-            version="1.4",
+            version="1.4.1",
             description="Download coursera.org class videos and resources",
             long_description=open("README.md").read(),
             author="Dirk Gorissen",
