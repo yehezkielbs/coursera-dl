@@ -1,18 +1,15 @@
-**update**: coursera has changed some things on their site which means coursera-dl temporarily no longer works.
-A fix in progress and can be followed here: [issue13][]
-
 coursera-dl
 ===========
 
 A python package for archiving content from coursera.org (videos,
 lecture notes, quizzes, …) for offline reference. Originally forked from
-[issue13][] but significantly
+[https://github.com/abhirama/coursera-download][] but significantly
 cleaned up and enhanced.
 
 Installation
 ------------
 
-Make sure you have installed [Python][] 2.7 and [pip][].
+Make sure you have installed [Python][] 2.7, [pip][], **and** [PyQt4][].
 
 Then simply run: pip install coursera-dl
 
@@ -34,7 +31,7 @@ algo-2012-001 ml-2012-002
 Note: ensure you have accepted the honor code of the class before using
 this script (happens the very first time you go to the class page).
 
-  [issue13]: https://github.com/dgorissen/coursera-dl/issues/13
   [https://github.com/abhirama/coursera-download]: https://github.com/abhirama/coursera-download
+  [PyQt4]: http://www.riverbankicomputing.co.uk/software/pyqt/download
   [Python]: http://www.python.org/download/
   [pip]: http://www.pip-installer.org/en/latest/installing.html
