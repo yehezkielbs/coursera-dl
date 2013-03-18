@@ -6,8 +6,20 @@ import os
 import errno
 import unicodedata
 import getpass
-from mechanize import Browser
+import mechanize
+import cookielib
 from bs4 import BeautifulSoup
+from os import path
+import tempfile
+import time
+
+
+try:
+    from spynner import Browser
+except:
+    print "PyQt4 and/or spynner is not installed, please see http://www.riverbankcomputing.co.uk/software/pyqt/download"
+    exit(-1)
+
 
 class CourseraDownloader(object):
     """
@@ -20,52 +32,85 @@ class CourseraDownloader(object):
     BASE_URL =    'http://class.coursera.org/%s'
     HOME_URL =    BASE_URL + '/class/index'
     LECTURE_URL = BASE_URL + '/lecture/index'
-    LOGIN_URL =   BASE_URL + '/auth/auth_redirector?type=login&subtype=normal'
     QUIZ_URL =    BASE_URL + '/quiz/index'
+    AUTH_URL =    BASE_URL + "/auth/auth_redirector?type=login&subtype=normal"
+    LOGIN_URL =   "http://www.coursera.org/account/signin"
 
     DEFAULT_PARSER = "lxml"
 
     def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER):
-        """Requires your coursera username and password. 
-        You can also specify the parser to use (defaults to lxml), see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
+        """
+        Requires your coursera username and password. 
+        You can also specify the parser to use (defaults to lxml)
+        see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
         """
         self.username = username
         self.password = password
         self.parser = parser
 
-        self.browser = Browser()
-        
-        if proxy:
-            self.browser.set_proxies({"http":proxy})
+        self.browser = None
+        self.proxy = proxy
+        self.cookiejar = None
 
-        self.browser.set_handle_robots(False)
-
-    def login(self,course_name):
+    def login(self):
         print "* Authenticating as %s..." % self.username
 
-        # open the course login page
-        page = self.browser.open(self.LOGIN_URL % course_name)
+        # a webkit browser, ensure all the javascript can be handled
+        webkit = Browser(embed_jquery=True,want_compat=True,debug_level=0)
+        # enable to see the browser widget
+        #webkit.create_webview()
+        #webkit.webview.show()
 
-        # check if we are already logged in by checking for a password field
-        bs = BeautifulSoup(page,self.parser)
-        pwdfield = bs.findAll("input",{"id":"password_login"})
+        # wait until the page is loaded, this is determined by the passed
+        # beautifulsoup filter
+        def wait_for_content(waitfor):
+            def can_continue(br):
+                soup = BeautifulSoup(br.html,self.parser)
+                res = waitfor(soup)
+                return bool(res)
 
-        if pwdfield:
-            self.browser.form = self.browser.forms().next()
-            self.browser['email'] = self.username
-            self.browser['password'] = self.password
-            r = self.browser.submit()
+            webkit.wait_for_content(can_continue, 5, "Timout reached, please check your network and username/password", delay=2)
+            soup = BeautifulSoup(webkit.html,self.parser)
+            return soup
 
-            # check that authentication actually succeeded
-            bs2 = BeautifulSoup(r.read(),self.parser)
-            title = bs2.title.string
-            if title.find("Login Failed") > 0:
-                raise Exception("Failed to authenticate as %s" % (self.username,))
- 
-        else:
-            # no login form, already logged in
-            print "* Already logged in"
+        # open the login page
+        webkit.load(self.LOGIN_URL)
+        page = wait_for_content(lambda s: s.find(id="signin-password"))
 
+        # fill in the credentials and submit
+        webkit.fill('input[id="signin-email"]',self.username)
+        webkit.fill('input[id="signin-password"]',self.password)
+        webkit.click('button[type="submit"]')
+
+        # ensure the page is processed
+        res = wait_for_content(lambda s: s.findAll(class_="coursera-profile-listing-sections"))
+
+        # write the cookies to a temporary file and load them
+        hd,fn = tempfile.mkstemp()
+        f = os.fdopen(hd,"w")
+        f.write(webkit.get_cookies())
+        f.close()
+        cj = cookielib.MozillaCookieJar(fn)
+        cj.load()
+
+        # check if we managed to login
+        sessionid = [c.name for c in cj if c.name == "sessionid"]
+        if not sessionid:
+            raise Exception("Failed to authenticate as %s" % self.username)
+
+        # all should be ok now, mechanize can handle the rest if we give it the
+        # cookies
+        br = mechanize.Browser()
+        #br.set_debug_http(True)
+        #br.set_debug_responses(False)
+        #br.set_debug_redirects(True)
+        br.set_handle_robots(False)
+        br.set_cookiejar(cj)
+
+        if self.proxy:
+            br.set_proxies({"http":self.proxy})
+
+        self.browser = br
 
     def course_name_from_url(self,course_url):
         """Given the course URL, return the name, e.g., algo2012-p2"""
@@ -88,17 +133,19 @@ class CourseraDownloader(object):
 
         # extract the weekly classes
         soup = BeautifulSoup(vidpage,self.parser)
-        headers = soup.findAll("div", { "class" : "course-item-list-header" })
+
+        # extract the weekly classes
+        weeks = soup.findAll("div", { "class" : "course-item-list-header" })
 
         weeklyTopics = []
         allClasses = {}
 
         # for each weekly class
-        for header in headers:
-            h3 = header.findNext('h3')
+        for week in weeks:
+            h3 = week.findNext('h3')
             sanitisedHeaderName = sanitiseFileName(h3.text)
             weeklyTopics.append(sanitisedHeaderName)
-            ul = header.next_sibling
+            ul = week.next_sibling
             lis = ul.findAll('li')
             weekClasses = {}
 
@@ -112,7 +159,8 @@ class CourseraDownloader(object):
                 hrefs = classResources.findAll('a')
 
                 # for each resource of that lecture (slides, pdf, ...)
-                # (dont set a filename here, that will be inferred from the headers)
+                # (dont set a filename here, that will be inferred from the week
+                # titles)
                 resourceLinks = [ (h['href'],None) for h in hrefs]
  
                 # check if the video is included in the resources, if not, try
@@ -121,7 +169,7 @@ class CourseraDownloader(object):
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-modal-iframe']
-                    p = self.browser.open(lurl)
+                    bb = self.load_page(lurl)
                     bb = BeautifulSoup(p,self.parser)
                     vobj = bb.find('source',type="video/mp4")
 
@@ -143,15 +191,17 @@ class CourseraDownloader(object):
         return (weeklyTopics, allClasses)
 
     def download(self, url, target_dir=".", target_fname=None):
-        """Download the url to the given filename"""
-        r = self.browser.open(url)
+        """
+        Download the url to the given filename
+        """
 
         # get the headers
+        r = self.browser.open(url)
         headers = r.info()
 
         # get the content length (if present)
         clen = int(headers['Content-Length']) if 'Content-Length' in headers else -1 
- 
+
         # build the absolute path we are going to write to
         fname = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers)) or CourseraDownloader.getFileNameFromURL(url)
         filepath = os.path.join(target_dir,fname)
@@ -178,15 +228,17 @@ class CourseraDownloader(object):
                 dl = False
 
         try:
-            if dl: self.browser.retrieve(url,filepath)
+           if dl:
+                self.browser.retrieve(url,filepath)
         except Exception as e:
             print "Failed to download url %s to %s: %s" % (url,filepath,e)
 
     def download_course(self,cname,dest_dir="."):
-        """Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)"""
-
-        # Ensure we are logged in
-        self.login(cname)
+        """
+        Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)
+        """
+        # open the main class page
+        self.browser.open(self.AUTH_URL % cname)
 
         # get the lecture url
         course_url = self.lecture_url_from_name(cname)
@@ -210,16 +262,6 @@ class CourseraDownloader(object):
         print " - Downloading lecture/syllabus pages"
         self.download(self.HOME_URL % cname,target_dir=course_dir,target_fname="index.html")
         self.download(course_url,target_dir=course_dir,target_fname="lectures.html")
-
-        # commented out because of https://github.com/dgorissen/coursera-dl/issues/2
-        # self.download((self.BASE_URL + '/wiki/view?page=syllabus') % cname, target_dir=course_dir,target_fname="syllabus.html")
-        # download the quizzes & homeworks
-        #for qt in ['quiz','homework']:
-        #    print "  - Downloading the '%s' quizzes" % qt
-        #    try:
-        #        self.download_quizzes(cname,course_dir,quiz_type=qt)
-        #    except Exception as e:
-        #        print "  - Failed %s" % e
 
         # now download the actual content (video's, lecture notes, ...)
         for j,weeklyTopic in enumerate(weeklyTopics,start=1):
@@ -270,39 +312,6 @@ class CourseraDownloader(object):
                        print "    - failed: ",classResource,e
 
 
-    def download_quizzes(self,course,target_dir,quiz_type="quiz"):
-        """Download each of the quizzes as separate html files, the quiz type is
-        typically quiz or homework"""
-
-        # extract the list of all quizzes
-        qurl = (self.QUIZ_URL + "?quiz_type=" + quiz_type) % course
-        p = self.browser.open(qurl)
-        bs = BeautifulSoup(p,self.parser)
-
-        qlist = bs.find('div',{'class':'item_list'})
-        qurls = [q['href'].replace('/start?','/attempt?') for q in qlist.findAll('a',{'class':'btn primary'})]
-        titles = [t.string for t in qlist.findAll('h4')]
-
-        # ensure the target directory exists
-        dir = os.path.join(target_dir,quiz_type)
-
-        try:
-            os.makedirs(dir)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                pass
-            else: raise
-
-        # download each one
-        for i,it in enumerate(zip(qurls,titles),start=1):
-            q,t = it
-            fname = os.path.join(dir,str(i).zfill(2) + " - " + sanitiseFileName(t) + ".html")
-            if os.path.exists(fname):
-                pass
-                #print "  - already exists, skipping"
-            else:
-                self.browser.retrieve(q,fname)
-
     @staticmethod
     def extractFileName(contentDispositionString):
         #print contentDispositionString
@@ -318,7 +327,8 @@ class CourseraDownloader(object):
         try:
             return CourseraDownloader.extractFileName(header['Content-Disposition']).lstrip()
         except Exception:
-            return '' 
+            return ''
+
 
     @staticmethod
     def getFileNameFromURL(url):
@@ -330,7 +340,7 @@ class CourseraDownloader(object):
 
         # take the last component as filename
         fname = parts[-1]
-        
+
         # if empty, url ended with a trailing slash
         # so join up the hostnam/path  and use that as a filename
         if len(fname) < 1:
@@ -344,7 +354,7 @@ class CourseraDownloader(object):
         # add an extension if none
         ext = os.path.splitext(fname)[1]
         if len(ext) < 1 or len(ext) > 5: fname += ".html"
-        
+
         # remove any illegal chars and return
         return sanitiseFileName(fname)
 
@@ -466,6 +476,9 @@ def main():
 
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password,proxy=args.proxy,parser=parser)
+    
+    # authenticate
+    d.login()
 
     # download the content
     for cn in args.course_names:

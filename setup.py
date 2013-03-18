@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name="coursera-dl",
-            version="1.2.1",
+            version="1.3",
             description="Download coursera.org class videos and resources",
             long_description=open("README.md").read(),
             author="Dirk Gorissen",
@@ -12,6 +12,6 @@ setup(name="coursera-dl",
             license="GPLv3",
             packages=["courseradownloader"],
             entry_points = { "console_scripts" : [ "coursera-dl = courseradownloader.courseradownloader:main"]},
-            install_requires=["mechanize","beautifulsoup4","argparse"],
+            install_requires=["spynner","mechanize","beautifulsoup4","argparse"],
            )
 
