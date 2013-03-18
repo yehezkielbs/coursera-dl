@@ -32,6 +32,6 @@ Note: ensure you have accepted the honor code of the class before using
 this script (happens the very first time you go to the class page).
 
   [https://github.com/abhirama/coursera-download]: https://github.com/abhirama/coursera-download
-  [PyQt4]: http://www.riverbankicomputing.co.uk/software/pyqt/download
+  [PyQt4]: http://www.riverbankcomputing.co.uk/software/pyqt/download
   [Python]: http://www.python.org/download/
   [pip]: http://www.pip-installer.org/en/latest/installing.html
