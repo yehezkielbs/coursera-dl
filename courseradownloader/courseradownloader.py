@@ -85,7 +85,12 @@ class CourseraDownloader(object):
 
         data = urllib.urlencode({'email_address': self.username,'password': self.password})
         req.add_data(data)
-        opener.open(req)
+
+        try:
+            opener.open(req)
+        except urllib2.HTTPError as e:
+            if e.code == 401:
+                raise Exception("Invalid username or password")
 
         # check if we managed to login
         sessionid = [c.name for c in cj if c.name == "sessionid"]
@@ -238,7 +243,7 @@ class CourseraDownloader(object):
         except Exception as e:
             print "Failed to download url %s to %s: %s" % (url,filepath,e)
 
-    def download_course(self,cname,dest_dir="."):
+    def download_course(self,cname,dest_dir=".",reverse_sections=False):
         """
         Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)
         """
@@ -250,6 +255,10 @@ class CourseraDownloader(object):
 
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
         print '* Got all downloadable content for ' + cname
+
+        if reverse_sections:
+            weeklyTopics.reverse()
+            print "* Sections reversed"
 
         course_dir = os.path.abspath(os.path.join(dest_dir,cname))
 
@@ -454,6 +463,8 @@ def main():
     parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
                         help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
     parser.add_argument("-x", dest='proxy', type=str, default=None, help="proxy to use, e.g., foo.bar.com:3125")
+    parser.add_argument("--reverse-sections", dest='reverse', action="store_true",
+                        default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names (from the url)')
     args = parser.parse_args()
@@ -481,7 +492,7 @@ def main():
 
     # download the content
     for cn in args.course_names:
-        d.download_course(cn,dest_dir=args.dest_dir)
+        d.download_course(cn,dest_dir=args.dest_dir,reverse_sections=args.reverse)
 
 if __name__ == '__main__':
     main()
