@@ -9,7 +9,7 @@ cleaned up and enhanced.
 Installation
 ------------
 
-Make sure you have installed [Python][] 2.7, [pip][], **and** [PyQt4][].
+Make sure you have installed [Python][] 2.7 and [pip][].
 
 Then simply run: pip install coursera-dl
 
@@ -32,6 +32,5 @@ Note: ensure you have accepted the honor code of the class before using
 this script (happens the very first time you go to the class page).
 
   [https://github.com/abhirama/coursera-download]: https://github.com/abhirama/coursera-download
-  [PyQt4]: http://www.riverbankicomputing.co.uk/software/pyqt/download
   [Python]: http://www.python.org/download/
   [pip]: http://www.pip-installer.org/en/latest/installing.html

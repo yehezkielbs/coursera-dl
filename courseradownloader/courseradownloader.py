@@ -1,5 +1,6 @@
 import re
 import urllib
+import urllib2
 from urlparse import urlsplit
 import argparse
 import os
@@ -9,17 +10,8 @@ import getpass
 import mechanize
 import cookielib
 from bs4 import BeautifulSoup
-from os import path
 import tempfile
-import time
-
-
-try:
-    from spynner import Browser
-except:
-    print "PyQt4 and/or spynner is not installed, please see http://www.riverbankcomputing.co.uk/software/pyqt/download"
-    exit(-1)
-
+from os import path
 
 class CourseraDownloader(object):
     """
@@ -29,12 +21,12 @@ class CourseraDownloader(object):
     https://github.com/dgorissen/coursera-dl
     """
 
-    BASE_URL =    'http://class.coursera.org/%s'
+    BASE_URL =    'https://class.coursera.org/%s'
     HOME_URL =    BASE_URL + '/class/index'
     LECTURE_URL = BASE_URL + '/lecture/index'
     QUIZ_URL =    BASE_URL + '/quiz/index'
     AUTH_URL =    BASE_URL + "/auth/auth_redirector?type=login&subtype=normal"
-    LOGIN_URL =   "http://www.coursera.org/account/signin"
+    LOGIN_URL =   "https://www.coursera.org/maestro/api/user/login"
 
     DEFAULT_PARSER = "lxml"
 
@@ -50,48 +42,50 @@ class CourseraDownloader(object):
 
         self.browser = None
         self.proxy = proxy
-        self.cookiejar = None
 
-    def login(self):
-        print "* Authenticating as %s..." % self.username
+    def login(self,className):
+        """
+        Automatically generate a cookie file for the coursera site.
+        """
+        hn,fn = tempfile.mkstemp()
+        cookies = cookielib.LWPCookieJar()
+        handlers = [
+            urllib2.HTTPHandler(),
+            urllib2.HTTPSHandler(),
+            urllib2.HTTPCookieProcessor(cookies)
+        ]
+        opener = urllib2.build_opener(*handlers)
 
-        # a webkit browser, ensure all the javascript can be handled
-        webkit = Browser(embed_jquery=True,want_compat=True,debug_level=0)
-        # enable to see the browser widget
-        #webkit.create_webview()
-        #webkit.webview.show()
+        url = self.lecture_url_from_name(className)
+        req = urllib2.Request(url)
 
-        # wait until the page is loaded, this is determined by the passed
-        # beautifulsoup filter
-        def wait_for_content(waitfor):
-            def can_continue(br):
-                soup = BeautifulSoup(br.html,self.parser)
-                res = waitfor(soup)
-                return bool(res)
+        try:
+            res = opener.open(req)
+        except urllib2.HTTPError as e:
+            if e.code == 404:
+                raise Exception("Unknown class %s" % className)
 
-            webkit.wait_for_content(can_continue, 5, "Timout reached, please check your network and username/password", delay=2)
-            soup = BeautifulSoup(webkit.html,self.parser)
-            return soup
+        # get the csrf token
+        csrfcookie = [c for c in cookies if c.name == "csrf_token"]
+        if not csrfcookie: raise Exception("Failed to find csrf cookie")
+        csrftoken = csrfcookie[0].value
 
-        # open the login page
-        webkit.load(self.LOGIN_URL)
-        page = wait_for_content(lambda s: s.find(id="signin-password"))
+        opener.close()
 
-        # fill in the credentials and submit
-        webkit.fill('input[id="signin-email"]',self.username)
-        webkit.fill('input[id="signin-password"]',self.password)
-        webkit.click('button[type="submit"]')
-
-        # ensure the page is processed
-        res = wait_for_content(lambda s: s.findAll(class_="coursera-profile-listing-sections"))
-
-        # write the cookies to a temporary file and load them
-        hd,fn = tempfile.mkstemp()
-        f = os.fdopen(hd,"w")
-        f.write(webkit.get_cookies())
-        f.close()
+        # call the authenticator url:
         cj = cookielib.MozillaCookieJar(fn)
-        cj.load()
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
+                                    urllib2.HTTPHandler(),
+                                    urllib2.HTTPSHandler())
+
+        opener.addheaders.append(('Cookie', 'csrftoken=%s' % csrftoken))
+        opener.addheaders.append(('Referer', 'https://www.coursera.org'))
+        opener.addheaders.append(('X-CSRFToken', csrftoken))
+        req = urllib2.Request(self.LOGIN_URL)
+
+        data = urllib.urlencode({'email_address': self.username,'password': self.password})
+        req.add_data(data)
+        opener.open(req)
 
         # check if we managed to login
         sessionid = [c.name for c in cj if c.name == "sessionid"]
@@ -111,6 +105,10 @@ class CourseraDownloader(object):
             br.set_proxies({"http":self.proxy})
 
         self.browser = br
+
+        # also use this cookiejar for other mechanize operations (e.g., urlopen)
+        opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj))
+        mechanize.install_opener(opener)
 
     def course_name_from_url(self,course_url):
         """Given the course URL, return the name, e.g., algo2012-p2"""
@@ -143,7 +141,7 @@ class CourseraDownloader(object):
         # for each weekly class
         for week in weeks:
             h3 = week.findNext('h3')
-            sanitisedHeaderName = sanitiseFileName(h3.text)
+            sanitisedHeaderName = sanitise_filename(h3.text)
             weeklyTopics.append(sanitisedHeaderName)
             ul = week.next_sibling
             lis = ul.findAll('li')
@@ -152,7 +150,7 @@ class CourseraDownloader(object):
             # for each lecture in a weekly class
             classNames = []
             for li in lis:
-                className = sanitiseFileName(li.a.text)
+                className = sanitise_filename(li.a.text)
                 classNames.append(className)
                 classResources = li.find('div', {'class':'course-lecture-item-resource'})
 
@@ -190,20 +188,27 @@ class CourseraDownloader(object):
 
         return (weeklyTopics, allClasses)
 
+    def get_headers(self,url):
+        """
+        Get the headers
+        """
+        r = self.browser.open(url)
+        return r.info()
+
     def download(self, url, target_dir=".", target_fname=None):
         """
         Download the url to the given filename
         """
 
         # get the headers
-        r = self.browser.open(url)
-        headers = r.info()
+        headers = self.get_headers(url)
 
         # get the content length (if present)
         clen = int(headers['Content-Length']) if 'Content-Length' in headers else -1 
 
         # build the absolute path we are going to write to
-        fname = target_fname or sanitiseFileName(CourseraDownloader.getFileName(headers)) or CourseraDownloader.getFileNameFromURL(url)
+        fname = target_fname or filename_from_header(headers) or filename_from_url(url)
+
         filepath = os.path.join(target_dir,fname)
 
         dl = True
@@ -312,53 +317,44 @@ class CourseraDownloader(object):
                        print "    - failed: ",classResource,e
 
 
-    @staticmethod
-    def extractFileName(contentDispositionString):
-        #print contentDispositionString
+def filename_from_header(header):
+    try:
+        cd = header['Content-Disposition']
         pattern = 'attachment; filename="(.*?)"'
-        m = re.search(pattern, contentDispositionString)
-        try:
-            return m.group(1)
-        except Exception:
-            return ''
+        m = re.search(pattern, cd)
+        g = m.group(1)
+        return sanitise_filename(g)
+    except Exception:
+        return ''
 
-    @staticmethod
-    def getFileName(header):
-        try:
-            return CourseraDownloader.extractFileName(header['Content-Disposition']).lstrip()
-        except Exception:
-            return ''
+def filename_from_url(url):
+    # parse the url into its components
+    u = urlsplit(url)
 
+    # split the path into parts and unquote
+    parts = [urllib2.unquote(x).strip() for x in u.path.split('/')]
 
-    @staticmethod
-    def getFileNameFromURL(url):
-        # parse the url into its components
-        u = urlsplit(url)
+    # take the last component as filename
+    fname = parts[-1]
 
-        # split the path into parts and unquote
-        parts = [urllib.unquote(x).strip() for x in u.path.split('/')]
+    # if empty, url ended with a trailing slash
+    # so join up the hostnam/path  and use that as a filename
+    if len(fname) < 1:
+        s = u.netloc + u.path[:-1]
+        fname = s.replace('/','_')
+    else:
+        # unquoting could have cuased slashes to appear again
+        # split and take the last element if so
+        fname = fname.split('/')[-1]
 
-        # take the last component as filename
-        fname = parts[-1]
+    # add an extension if none
+    ext = os.path.splitext(fname)[1]
+    if len(ext) < 1 or len(ext) > 5: fname += ".html"
 
-        # if empty, url ended with a trailing slash
-        # so join up the hostnam/path  and use that as a filename
-        if len(fname) < 1:
-           s = u.netloc + u.path[:-1]
-           fname = s.replace('/','_')
-        else:
-            # unquoting could have cuased slashes to appear again
-            # split and take the last element if so
-            fname = fname.split('/')[-1]
+    # remove any illegal chars and return
+    return sanitise_filename(fname)
 
-        # add an extension if none
-        ext = os.path.splitext(fname)[1]
-        if len(ext) < 1 or len(ext) > 5: fname += ".html"
-
-        # remove any illegal chars and return
-        return sanitiseFileName(fname)
-
-def sanitiseFileName(fileName):
+def sanitise_filename(fileName):
     # ensure a clean, valid filename (arg may be both str and unicode)
 
     # ensure a unicode string, problematic ascii chars will get removed
@@ -385,9 +381,11 @@ def sanitiseFileName(fileName):
 
     return s
 
+# TODO: simplistic
 def isValidURL(url):
     return url.startswith('http') or url.startswith('https')
 
+# TODO: is this really still needed
 class AbsoluteURLGen(object):
     """
     Generate absolute URLs from relative ones
@@ -477,8 +475,9 @@ def main():
     # instantiate the downloader class
     d = CourseraDownloader(args.username,args.password,proxy=args.proxy,parser=parser)
     
-    # authenticate
-    d.login()
+    # authenticate, only need to do this once but need a classaname to get hold
+    # of the csrf token, so simply pass the first one
+    d.login(args.course_names[0])
 
     # download the content
     for cn in args.course_names:

@@ -1,5 +1,4 @@
 beautifulsoup4
 mechanize
 argparse
-spynner
 
