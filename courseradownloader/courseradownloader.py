@@ -204,7 +204,7 @@ class CourseraDownloader(object):
         headers = self.get_headers(url)
 
         # get the content length (if present)
-        clen = int(headers['Content-Length']) if 'Content-Length' in headers else -1 
+        clen = int(headers.get('Content-Length',-1))
 
         # build the absolute path we are going to write to
         fname = target_fname or filename_from_header(headers) or filename_from_url(url)
