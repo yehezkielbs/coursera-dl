@@ -12,6 +12,7 @@ import cookielib
 from bs4 import BeautifulSoup
 import tempfile
 from os import path
+import version
 
 class CourseraDownloader(object):
     """
@@ -254,7 +255,12 @@ class CourseraDownloader(object):
         course_url = self.lecture_url_from_name(cname)
 
         (weeklyTopics, allClasses) = self.get_downloadable_content(course_url)
-        print '* Got all downloadable content for ' + cname
+
+        if not weeklyTopics:
+            print " Warning: no downloadable content found for %s, did you accept the honour code?" % cname
+            return
+        else:
+            print '* Got all downloadable content for ' + cname
 
         if reverse_sections:
             weeklyTopics.reverse()
@@ -472,12 +478,12 @@ def main():
     # check the parser
     parser = args.parser
     if parser == 'lxml' and not haslxml():
-        print "Warning: lxml not available, falling back to built-in 'html.parser' (see -q option), this may cause problems on Python < 2.7.3"
+        print " Warning: lxml not available, falling back to built-in 'html.parser' (see -q option), this may cause problems on Python < 2.7.3"
         parser = 'html.parser'
     else:
         pass
 
-    print "HTML parser set to %s" % parser
+    print "Coursera-dl v%s (%s)" % (version.VERSION,parser)
 
     # prompt the user for his password if not specified
     if not args.password:
@@ -491,7 +497,9 @@ def main():
     d.login(args.course_names[0])
 
     # download the content
-    for cn in args.course_names:
+    for i,cn in enumerate(args.course_names,start=1):
+        print
+        print "Course %s of %s" % (i,len(args.course_names))
         d.download_course(cn,dest_dir=args.dest_dir,reverse_sections=args.reverse)
 
 if __name__ == '__main__':
