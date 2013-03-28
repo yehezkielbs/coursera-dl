@@ -166,6 +166,10 @@ class CourseraDownloader(object):
                 # (dont set a filename here, that will be inferred from the week
                 # titles)
                 resourceLinks = [ (h['href'],None) for h in hrefs]
+                # Ignore source_videos, they are huge and available compressed 
+                for x,_ in resourceLinks:
+                    if x.find('source_videos') > 0:
+                        print "Not downloading " + x['href'] + " since it is a source video."
                 resourceLinks = [ (x,None) for x,_ in resourceLinks if x.find('source_videos') <=0 ]
  
                 # check if the video is included in the resources, if not, try
