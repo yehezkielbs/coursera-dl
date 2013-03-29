@@ -162,15 +162,23 @@ class CourseraDownloader(object):
 
                 hrefs = classResources.findAll('a')
 
-                # for each resource of that lecture (slides, pdf, ...)
-                # (dont set a filename here, that will be inferred from the week
-                # titles)
-                resourceLinks = [ (h['href'],None) for h in hrefs]
-                # Ignore source_videos, they are huge and available compressed 
-                for x,_ in resourceLinks:
-                    if x.find('source_videos') > 0:
-                        print "Not downloading " + x['href'] + " since it is a source video."
-                resourceLinks = [ (x,None) for x,_ in resourceLinks if x.find('source_videos') <=0 ]
+                # collect the resources for a particular lecture (slides, pdf,
+                # links,...)
+                resourceLinks = []
+
+                for a in hrefs:
+                    # get the hyperlink itself
+                    h = a['href']
+
+                    # Sometimes the raw, uncompresed source videos are available as
+                    # well. Don't download them as they are huge and available in
+                    # compressed form anyway.
+                    if h.find('source_videos') > 0:
+                        print "   - will skip raw source video " + h
+                    else:
+                        # Dont set a filename here, that will be inferred from the week
+                        # titles
+                        resourceLinks.append( (h,None) )
  
                 # check if the video is included in the resources, if not, try
                 # do download it directly
