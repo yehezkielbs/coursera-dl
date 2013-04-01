@@ -31,7 +31,7 @@ class CourseraDownloader(object):
 
     DEFAULT_PARSER = "lxml"
 
-    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER):
+    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None):
         """
         Requires your coursera username and password. 
         You can also specify the parser to use (defaults to lxml)
@@ -40,6 +40,11 @@ class CourseraDownloader(object):
         self.username = username
         self.password = password
         self.parser = parser
+        # Split "ignorefiles" argument on commas, strip, remove prefixing dot
+        # if there is one, and filter out empty tokens.
+        self.ignorefiles = filter(lambda x: len(x) > 0,
+                                  [(x.strip()[1:] if (len(x) and x[0]=='.') 
+                                    else x.strip()) for x in ignorefiles.split(',')])
 
         self.browser = None
         self.proxy = proxy
@@ -227,6 +232,10 @@ class CourseraDownloader(object):
 
         # build the absolute path we are going to write to
         fname = target_fname or filename_from_header(headers) or filename_from_url(url)
+        
+        if (fname.split('.')[-1] in self.ignorefiles):
+            print '    - skipping "%s" (extension ignored)' % fname 
+            return
 
         filepath = os.path.join(target_dir,fname)
 
@@ -479,6 +488,7 @@ def main():
     parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='dest_dir', type=str, default=".", help='destination directory where everything will be saved')
+    parser.add_argument("-n", dest='ignorefiles', type=str, default="", help='comma-separated list of file extensions to discard')
     parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
                         help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
     parser.add_argument("-x", dest='proxy', type=str, default=None, help="proxy to use, e.g., foo.bar.com:3125")
@@ -503,7 +513,7 @@ def main():
         args.password = getpass.getpass()
 
     # instantiate the downloader class
-    d = CourseraDownloader(args.username,args.password,proxy=args.proxy,parser=parser)
+    d = CourseraDownloader(args.username,args.password,proxy=args.proxy,parser=parser,ignorefiles=args.ignorefiles)
     
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
