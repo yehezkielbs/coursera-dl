@@ -163,8 +163,18 @@ class CourseraDownloader(object):
             # for each lecture in a weekly class
             classNames = []
             for li in lis:
-                className = sanitise_filename(li.a.text)
-                classNames.append(className)
+                # the name of this lecture/class
+                className = li.a.text.strip()
+
+                # Many class names have the following format: 
+                #   "Something really cool (12:34)"
+                # If the class name has this format, replace the colon in the
+                # time with a hyphen.
+                if re.match(".+\(\d?\d:\d\d\)$",className):
+                    head,sep,tail = className.rpartition(":")
+                    className = head  + "-" + tail
+
+                classNames.append(sanitise_filename(className))
                 classResources = li.find('div', {'class':'course-lecture-item-resource'})
 
                 hrefs = classResources.findAll('a')
