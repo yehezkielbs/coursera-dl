@@ -20,8 +20,13 @@ class CourseraDownloader(object):
     use offline.
 
     https://github.com/dgorissen/coursera-dl
-    """
 
+    :param username: username
+    :param password: password
+    :keyword proxy: http proxy, eg: foo.bar.com:1234
+    :keyword parser: xml parser (defaults to lxml)
+    :keyword ignorefiles: comma separated list of file extensions to skip (e.g., "ppt,srt")
+    """
     BASE_URL =    'https://class.coursera.org/%s'
     HOME_URL =    BASE_URL + '/class/index'
     LECTURE_URL = BASE_URL + '/lecture/index'
@@ -29,22 +34,18 @@ class CourseraDownloader(object):
     AUTH_URL =    BASE_URL + "/auth/auth_redirector?type=login&subtype=normal"
     LOGIN_URL =   "https://www.coursera.org/maestro/api/user/login"
 
+    #see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
     DEFAULT_PARSER = "lxml"
 
     def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None):
-        """
-        Requires your coursera username and password. 
-        You can also specify the parser to use (defaults to lxml)
-        see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
-        """
         self.username = username
         self.password = password
         self.parser = parser
+
         # Split "ignorefiles" argument on commas, strip, remove prefixing dot
         # if there is one, and filter out empty tokens.
-        self.ignorefiles = filter(lambda x: len(x) > 0,
-                                  [(x.strip()[1:] if (len(x) and x[0]=='.') 
-                                    else x.strip()) for x in ignorefiles.split(',')])
+        self.ignorefiles =  [x.strip()[1:] if x[0]=='.' else x.strip()
+                             for x in ignorefiles.split(',') if len(x)]
 
         self.browser = None
         self.proxy = proxy
@@ -53,6 +54,7 @@ class CourseraDownloader(object):
         """
         Automatically generate a cookie file for the coursera site.
         """
+        #TODO: use proxy here
         hn,fn = tempfile.mkstemp()
         cookies = cookielib.LWPCookieJar()
         handlers = [
@@ -232,17 +234,21 @@ class CourseraDownloader(object):
 
         # build the absolute path we are going to write to
         fname = target_fname or filename_from_header(headers) or filename_from_url(url)
-        
-        if (fname.split('.')[-1] in self.ignorefiles):
+
+        # split off the extension
+        _,ext = path.splitext(fname)
+
+        # check if we should skip it (remember to remove the leading .)
+        if ext and ext[1:] in self.ignorefiles:
             print '    - skipping "%s" (extension ignored)' % fname 
             return
 
-        filepath = os.path.join(target_dir,fname)
+        filepath = path.join(target_dir,fname)
 
         dl = True
-        if os.path.exists(filepath):
+        if path.exists(filepath):
             if clen > 0: 
-                fs = os.path.getsize(filepath)
+                fs = path.getsize(filepath)
                 delta = clen - fs
 
                 # all we know is that the current filesize may be shorter than it should be and the content length may be incorrect
@@ -288,16 +294,16 @@ class CourseraDownloader(object):
             weeklyTopics.reverse()
             print "* Sections reversed"
 
-        course_dir = os.path.abspath(os.path.join(dest_dir,cname))
+        course_dir = path.abspath(path.join(dest_dir,cname))
 
         # ensure the target dir exists
-        if not os.path.exists(course_dir):
+        if not path.exists(course_dir):
             os.mkdir(course_dir)
 
         print "* " + cname + " will be downloaded to " + course_dir
 
         # ensure the course directory exists
-        if not os.path.exists(course_dir):
+        if not path.exists(course_dir):
             os.makedirs(course_dir)
 
         # download the standard pages
@@ -314,8 +320,8 @@ class CourseraDownloader(object):
             # ensure the week dir exists
             # add a numeric prefix to the week directory name to ensure chronological ordering
             wkdirname = str(j).zfill(2) + " - " + weeklyTopic
-            wkdir = os.path.join(course_dir,wkdirname)
-            if not os.path.exists(wkdir):
+            wkdir = path.join(course_dir,wkdirname)
+            if not path.exists(wkdir):
                 os.makedirs(wkdir)
 
             weekClasses = allClasses[weeklyTopic]
@@ -331,8 +337,8 @@ class CourseraDownloader(object):
 
                 # ensure the class dir exists
                 clsdirname = str(i).zfill(2) + " - " + className
-                clsdir = os.path.join(wkdir,clsdirname)
-                if not os.path.exists(clsdir): 
+                clsdir = path.join(wkdir,clsdirname)
+                if not path.exists(clsdir): 
                     os.makedirs(clsdir)
 
                 print "  - Downloading resources for " + className
@@ -385,7 +391,7 @@ def filename_from_url(url):
         fname = fname.split('/')[-1]
 
     # add an extension if none
-    ext = os.path.splitext(fname)[1]
+    ext = path.splitext(fname)[1]
     if len(ext) < 1 or len(ext) > 5: fname += ".html"
 
     # remove any illegal chars and return
@@ -413,7 +419,7 @@ def sanitise_filename(fileName):
     max = 250
 
     # split off extension, trim, and re-add the extension
-    fn,ext = os.path.splitext(s)
+    fn,ext = path.splitext(s)
     s = fn[:max-len(ext)] + ext
 
     return s
@@ -488,7 +494,7 @@ def main():
     parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='dest_dir', type=str, default=".", help='destination directory where everything will be saved')
-    parser.add_argument("-n", dest='ignorefiles', type=str, default="", help='comma-separated list of file extensions to discard')
+    parser.add_argument("-n", dest='ignorefiles', type=str, default="", help='comma-separated list of file extensions to skip, e.g., "ppt,srt,pdf"')
     parser.add_argument("-q", dest='parser', type=str, default=CourseraDownloader.DEFAULT_PARSER,
                         help="the html parser to use, see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser")
     parser.add_argument("-x", dest='proxy', type=str, default=None, help="proxy to use, e.g., foo.bar.com:3125")
