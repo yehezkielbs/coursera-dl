@@ -203,7 +203,7 @@ class CourseraDownloader(object):
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-modal-iframe']
-                    bb = self.load_page(lurl)
+                    bb = self.browser.open(lurl)
                     bb = BeautifulSoup(p,self.parser)
                     vobj = bb.find('source',type="video/mp4")
 
