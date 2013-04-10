@@ -511,7 +511,7 @@ def main():
     parser.add_argument("--reverse-sections", dest='reverse', action="store_true",
                         default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
-                        type=str, help='one or more course names (from the url)')
+                        type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
     args = parser.parse_args()
 
     # check the parser
