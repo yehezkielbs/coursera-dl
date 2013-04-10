@@ -3,7 +3,7 @@
 from setuptools import setup
 from os import path
 import os
-import version
+from courseradownloader import _version
 
 
 # get the requirements from the pip requirements file
@@ -15,7 +15,7 @@ with open("requirements.txt") as f:
         if l: requirements.append(l)
 
 setup(name="coursera-dl",
-            version=version.VERSION,
+            version=_version.__version__,
             description="Download coursera.org class videos and resources",
             long_description=open("README.md").read(),
             author="Dirk Gorissen",
@@ -23,7 +23,6 @@ setup(name="coursera-dl",
             url="https://github.com/dgorissen/coursera-dl",
             license="GPLv3",
             packages=["courseradownloader"],
-            py_modules=['version'],  
             entry_points = { "console_scripts" : [ "coursera-dl = courseradownloader.courseradownloader:main"]},
             install_requires=requirements
            )

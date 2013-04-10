@@ -12,7 +12,7 @@ import cookielib
 from bs4 import BeautifulSoup
 import tempfile
 from os import path
-import version
+import _version
 
 class CourseraDownloader(object):
     """
@@ -522,7 +522,7 @@ def main():
     else:
         pass
 
-    print "Coursera-dl v%s (%s)" % (version.VERSION,parser)
+    print "Coursera-dl v%s (%s)" % (_version.__version__,parser)
 
     # prompt the user for his password if not specified
     if not args.password:
