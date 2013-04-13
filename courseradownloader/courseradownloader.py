@@ -174,7 +174,8 @@ class CourseraDownloader(object):
                     head,sep,tail = className.rpartition(":")
                     className = head  + "-" + tail
 
-                classNames.append(sanitise_filename(className))
+                className = sanitise_filename(className)
+                classNames.append(className)
                 classResources = li.find('div', {'class':'course-lecture-item-resource'})
 
                 hrefs = classResources.findAll('a')
@@ -324,7 +325,8 @@ class CourseraDownloader(object):
         # now download the actual content (video's, lecture notes, ...)
         for j,weeklyTopic in enumerate(weeklyTopics,start=1):
             if weeklyTopic not in allClasses:
-                #print 'Weekly topic not in all classes:', weeklyTopic
+                #TODO: refactor
+                print 'Warning: Weekly topic not in all classes:', weeklyTopic
                 continue
 
             # ensure the week dir exists
@@ -341,6 +343,8 @@ class CourseraDownloader(object):
 
             for i,className in enumerate(classNames,start=1):
                 if className not in weekClasses:
+                    #TODO: refactor
+                    print "Warning:",className,"not in",weekClasses.keys()
                     continue
 
                 classResources = weekClasses[className]
