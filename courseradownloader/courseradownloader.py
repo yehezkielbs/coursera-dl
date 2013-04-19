@@ -7,6 +7,7 @@ import os
 import errno
 import unicodedata
 import getpass
+import netrc
 import mechanize
 import cookielib
 from bs4 import BeautifulSoup
@@ -508,7 +509,7 @@ def haslxml():
 def main():
     # parse the commandline arguments
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
-    parser.add_argument("-u", dest='username', type=str, required=True, help='coursera.org username')
+    parser.add_argument("-u", dest='username', type=str, help='coursera.org username')
     parser.add_argument("-p", dest='password', type=str, help='coursera.org password')
     parser.add_argument("-d", dest='dest_dir', type=str, default=".", help='destination directory where everything will be saved')
     parser.add_argument("-n", dest='ignorefiles', type=str, default="", help='comma-separated list of file extensions to skip, e.g., "ppt,srt,pdf"')
@@ -531,6 +532,15 @@ def main():
 
     print "Coursera-dl v%s (%s)" % (_version.__version__,parser)
 
+    # search for login credentials in .netrc file if username hasn't been provided in command-line args
+    if not args.username:
+        netrc_authenticator = netrc.netrc().authenticators('coursera-dl')
+        if netrc_authenticator:
+            args.username, unused_account_name, args.password = netrc_authenticator
+
+    if not args.username:
+        raise Exception('No login credentials provided neither in command-line args nor in .netrc file!')
+
     # prompt the user for his password if not specified
     if not args.password:
         args.password = getpass.getpass()
@@ -540,6 +550,7 @@ def main():
     
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
+    print "Logging in as '%s'..." % args.username
     d.login(args.course_names[0])
 
     # download the content
