@@ -37,6 +37,9 @@ class CourseraDownloader(object):
     #see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
     DEFAULT_PARSER = "lxml"
 
+    # how long to try to open a URL before timing out
+    TIMEOUT=60.0
+
     def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None):
         self.username = username
         self.password = password
@@ -140,7 +143,7 @@ class CourseraDownloader(object):
         print "* Collecting downloadable content from " + course_url
 
         # get the course name, and redirect to the course lecture page
-        vidpage = self.browser.open(course_url)
+        vidpage = self.browser.open(course_url,timeout=self.TIMEOUT)
 
         # extract the weekly classes
         soup = BeautifulSoup(vidpage,self.parser)
@@ -204,7 +207,7 @@ class CourseraDownloader(object):
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-modal-iframe']
-                    bb = self.browser.open(lurl)
+                    bb = self.browser.open(lurl,timeout=self.TIMEOUT)
                     bb = BeautifulSoup(p,self.parser)
                     vobj = bb.find('source',type="video/mp4")
 
@@ -229,7 +232,7 @@ class CourseraDownloader(object):
         """
         Get the headers
         """
-        r = self.browser.open(url)
+        r = self.browser.open(url,timeout=self.TIMEOUT)
         return r.info()
 
     def download(self, url, target_dir=".", target_fname=None):
@@ -279,7 +282,7 @@ class CourseraDownloader(object):
 
         try:
            if dl:
-                self.browser.retrieve(url,filepath)
+                self.browser.retrieve(url,filepath,timeout=self.TIMEOUT)
         except Exception as e:
             print "Failed to download url %s to %s: %s" % (url,filepath,e)
 
@@ -288,7 +291,7 @@ class CourseraDownloader(object):
         Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)
         """
         # open the main class page
-        self.browser.open(self.AUTH_URL % cname)
+        self.browser.open(self.AUTH_URL % cname,timeout=self.TIMEOUT)
 
         # get the lecture url
         course_url = self.lecture_url_from_name(cname)
