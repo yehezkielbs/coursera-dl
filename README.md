@@ -34,7 +34,9 @@ Just add this line to ~/.netrc
 <pre>
 machine coursera-dl login myusername password mypassword
 </pre>
+
 Now you can use coursera-dl like this:
+
 <pre>
 coursera-dl -d /my/coursera/courses/ algo-2012-001 ml-2012-002
 </pre>
