@@ -1,0 +1,5 @@
+* 1.4.8 - Sun 28 Apr
+	- netrc support for caching credentials
+	- added explict timeouts when downloading files
+	- small bugfixes and code cleanups
+
