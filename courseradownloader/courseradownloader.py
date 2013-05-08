@@ -191,7 +191,8 @@ class CourseraDownloader(object):
 
                 for a in hrefs:
                     # get the hyperlink itself
-                    h = a['href']
+                    h = a.get('href')
+                    if not h: continue
 
                     # Sometimes the raw, uncompresed source videos are available as
                     # well. Don't download them as they are huge and available in
