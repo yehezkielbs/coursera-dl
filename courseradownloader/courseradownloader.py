@@ -210,17 +210,25 @@ class CourseraDownloader(object):
                 if not hasvid:
                     ll = li.find('a',{'class':'lecture-link'})
                     lurl = ll['data-modal-iframe']
-                    pg = self.browser.open(lurl,timeout=self.TIMEOUT)
-                    bb = BeautifulSoup(pg,self.parser)
-                    vobj = bb.find('source',type="video/mp4")
 
-                    if not vobj:
-                        print " Warning: Failed to find video for %s" %  className
-                    else:
-                        vurl = vobj['src']
-                        # build the matching filename
-                        fn = className + ".mp4"
-                        resourceLinks.append( (vurl,fn) )
+                    try:
+                        pg = self.browser.open(lurl,timeout=self.TIMEOUT)
+
+                        bb = BeautifulSoup(pg,self.parser)
+                        vobj = bb.find('source',type="video/mp4")
+
+                        if not vobj:
+                            print " Warning: Failed to find video for %s" %  className
+                        else:
+                            vurl = vobj['src']
+                            # build the matching filename
+                            fn = className + ".mp4"
+                            resourceLinks.append( (vurl,fn) )
+
+                    except urllib2.HTTPError as e:
+                        # sometimes there is a lecture without a vidio (e.g.,
+                        # genes-001) so this can happen.
+                        print " Warning: failed to download video directly url %s: %s" % (lurl,e)
 
                 weekClasses[className] = resourceLinks
 
