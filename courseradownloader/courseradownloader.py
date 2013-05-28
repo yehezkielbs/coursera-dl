@@ -562,14 +562,14 @@ def main():
     args = parser.parse_args()
 
     # check the parser
-    parser = args.parser
-    if parser == 'lxml' and not haslxml():
+    html_parser = args.parser
+    if html_parser == 'lxml' and not haslxml():
         print " Warning: lxml not available, falling back to built-in 'html.parser' (see -q option), this may cause problems on Python < 2.7.3"
-        parser = 'html.parser'
+        html_parser = 'html.parser'
     else:
         pass
 
-    print "Coursera-dl v%s (%s)" % (_version.__version__,parser)
+    print "Coursera-dl v%s (%s)" % (_version.__version__,html_parser)
 
     # search for login credentials in .netrc file if username hasn't been provided in command-line args
     username, password = args.username, args.password
@@ -585,7 +585,7 @@ def main():
             password = getpass.getpass()
 
     # instantiate the downloader class
-    d = CourseraDownloader(username,password,proxy=args.proxy,parser=parser,ignorefiles=args.ignorefiles)
+    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles)
     
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
