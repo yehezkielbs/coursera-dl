@@ -42,7 +42,7 @@ class CourseraDownloader(object):
     # how long to try to open a URL before timing out
     TIMEOUT=60.0
 
-    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None):
+    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None, max_path_len=None):
         self.username = username
         self.password = password
         self.parser = parser
@@ -54,6 +54,7 @@ class CourseraDownloader(object):
 
         self.browser = None
         self.proxy = proxy
+        self.max_path_len = max_path_len
 
     def login(self,className):
         """
@@ -246,6 +247,32 @@ class CourseraDownloader(object):
         r = self.browser.open(url,timeout=self.TIMEOUT)
         return r.info()
 
+    def trimFileName(self, pathname):
+        """
+        Trim file name in given path name to fit max_path_len characters. Only file name is trimmed,
+        path names are not affected to avoid creating multiple folders for the same lecture.
+        """
+        MIN_LEN = 5  # Minimum length of file name to keep
+
+        if len(pathname) <= self.max_path_len:
+            return pathname
+
+        fpath, name = path.split(pathname)
+        name, ext = path.splitext(name)
+
+        to_cut = len(pathname) - self.max_path_len
+        to_keep = len(name) - to_cut
+
+        if to_keep < MIN_LEN:
+            print 'Cannot trim path name "%s" to fit required length (%d)' % (pathname, self.max_path_len)
+            return pathname
+
+        name = name[:to_keep]
+        new_pathname = path.join(fpath, name + ext)
+        print 'Trimmed path name "%s" to "%s" to fit required length (%d)' % (pathname, new_pathname, self.max_path_len)
+
+        return new_pathname
+
     def download(self, url, target_dir=".", target_fname=None):
         """
         Download the url to the given filename
@@ -269,6 +296,9 @@ class CourseraDownloader(object):
             return
 
         filepath = path.join(target_dir,fname)
+
+        if self.max_path_len:
+            filepath = self.trimFileName(filepath)
 
         dl = True
         if path.exists(filepath):
@@ -567,6 +597,7 @@ def main():
                         default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
+    parser.add_argument("-t", dest='max_path_len', type=int, help='attempt to trim path names to fit specified length, e.g. -t 259')
     args = parser.parse_args()
 
     # check the parser
@@ -593,8 +624,9 @@ def main():
             password = getpass.getpass()
 
     # instantiate the downloader class
-    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles)
-    
+    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles,
+        max_path_len=args.max_path_len)
+
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
     print "Logging in as '%s'..." % username
