@@ -228,7 +228,7 @@ class CourseraDownloader(object):
                     except urllib2.HTTPError as e:
                         # sometimes there is a lecture without a vidio (e.g.,
                         # genes-001) so this can happen.
-                        print " Warning: failed to download video directly url %s: %s" % (lurl,e)
+                        print " Warning: failed to open the direct video link %s: %s" % (lurl,e)
 
                 weekClasses[className] = resourceLinks
 
