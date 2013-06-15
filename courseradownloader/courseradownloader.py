@@ -247,32 +247,6 @@ class CourseraDownloader(object):
         r = self.browser.open(url,timeout=self.TIMEOUT)
         return r.info()
 
-    def trimFileName(self, pathname):
-        """
-        Trim file name in given path name to fit max_path_len characters. Only file name is trimmed,
-        path names are not affected to avoid creating multiple folders for the same lecture.
-        """
-        MIN_LEN = 5  # Minimum length of file name to keep
-
-        if len(pathname) <= self.max_path_len:
-            return pathname
-
-        fpath, name = path.split(pathname)
-        name, ext = path.splitext(name)
-
-        to_cut = len(pathname) - self.max_path_len
-        to_keep = len(name) - to_cut
-
-        if to_keep < MIN_LEN:
-            print 'Cannot trim path name "%s" to fit required length (%d)' % (pathname, self.max_path_len)
-            return pathname
-
-        name = name[:to_keep]
-        new_pathname = path.join(fpath, name + ext)
-        print 'Trimmed path name "%s" to "%s" to fit required length (%d)' % (pathname, new_pathname, self.max_path_len)
-
-        return new_pathname
-
     def download(self, url, target_dir=".", target_fname=None):
         """
         Download the url to the given filename
@@ -298,7 +272,7 @@ class CourseraDownloader(object):
         filepath = path.join(target_dir,fname)
 
         if self.max_path_len:
-            filepath = self.trimFileName(filepath)
+            filepath = trim_path(filepath,max_path_len=self.max_path_len)
 
         dl = True
         if path.exists(filepath):
@@ -481,6 +455,31 @@ def sanitise_filename(fileName):
     s = fn[:max-len(ext)] + ext
 
     return s
+    
+def trim_path(pathname, max_path_len=255, min_len=5):
+    """
+    Trim file name in given path name to fit max_path_len characters. Only file name is trimmed,
+    path names are not affected to avoid creating multiple folders for the same lecture.
+    """
+    if len(pathname) <= max_path_len:
+        return pathname
+
+    fpath, name = path.split(pathname)
+    name, ext = path.splitext(name)
+
+    to_cut = len(pathname) - max_path_len
+    to_keep = len(name) - to_cut
+
+    if to_keep < min_len:
+        print ' Warning: Cannot trim filename "%s" to fit required path length (%d)' % (pathname, max_path_len)
+        return pathname
+
+    name = name[:to_keep]
+    new_pathname = path.join(fpath, name + ext)
+    print ' Trimmed path name "%s" to "%s" to fit required length (%d)' % (pathname, new_pathname, max_path_len)
+
+    return new_pathname
+
 
 # TODO: simplistic
 def isValidURL(url):
@@ -597,7 +596,7 @@ def main():
                         default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
-    parser.add_argument("-t", dest='max_path_len', type=int, help='attempt to trim path names to fit specified length, e.g. -t 259')
+    parser.add_argument("--trim-path", dest='trim_path', action='store_true', default=True, help='Trim path names to fit OS constraints (windows only)')
     args = parser.parse_args()
 
     # check the parser
@@ -623,9 +622,18 @@ def main():
         if not password:
             password = getpass.getpass()
 
+    # should we be trimming paths?
+    max_path_len = None
+    if args.trim_path:
+        if platform.system() == "Windows":
+            max_path_len = 257
+            print "Maximum path length set to %s" % max_path_len
+        else:
+            # linux max path length is typically around 4060 so assume thats ok
+            pass   
+ 
     # instantiate the downloader class
-    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles,
-        max_path_len=args.max_path_len)
+    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles,max_path_len=max_path_len)
 
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
