@@ -1,3 +1,7 @@
+* 1.4.9 - Wed 19 Jun
+	- small bug/crash fixes
+	- long filename trimming on windows
+
 * 1.4.8 - Sun 28 Apr
 	- netrc support for caching credentials
 	- added explict timeouts when downloading files
