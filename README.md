@@ -26,7 +26,7 @@ See: coursera-dl -h
 Example usage:
 
 <pre>
-coursera-dl -u myusername -p mypassword -d /my/coursera/courses/ algo-2012-001 ml-2012-002
+coursera-dl -u myusername -p mypassword --path /my/coursera/courses/ algo-2012-001 ml-2012-002
 </pre>
 
 Note: you can also specify your login and password in .netrc file in your home directory.
@@ -38,7 +38,7 @@ machine coursera-dl login myusername password mypassword
 Now you can use coursera-dl like this:
 
 <pre>
-coursera-dl -d /my/coursera/courses/ algo-2012-001 ml-2012-002
+coursera-dl --path /my/coursera/courses/ algo-2012-001 ml-2012-002
 </pre>
 
 Note: ensure you have accepted the honor code of the class before using
