@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import tempfile
 from os import path
 import platform
+import sys
 import _version
 
 class CourseraDownloader(object):
@@ -26,7 +27,7 @@ class CourseraDownloader(object):
     :param username: username
     :param password: password
     :keyword proxy: http proxy, eg: foo.bar.com:1234
-    :keyword parser: xml parser (defaults to lxml)
+    :keyword parser: xml parser 
     :keyword ignorefiles: comma separated list of file extensions to skip (e.g., "ppt,srt")
     """
     BASE_URL =    'https://class.coursera.org/%s'
@@ -37,7 +38,7 @@ class CourseraDownloader(object):
     LOGIN_URL =   "https://www.coursera.org/maestro/api/user/login"
 
     #see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
-    DEFAULT_PARSER = "lxml"
+    DEFAULT_PARSER = "html.parser"
 
     # how long to try to open a URL before timing out
     TIMEOUT=60.0
@@ -574,14 +575,6 @@ def get_netrc_creds():
 
     return creds
 
-# is lxml available?
-def haslxml():
-    try:
-        import lxml
-        return True
-    except:
-        return False
-
 def main():
     # parse the commandline arguments
     parser = argparse.ArgumentParser(description='Download Coursera.org course videos/docs for offline use.')
@@ -601,11 +594,8 @@ def main():
 
     # check the parser
     html_parser = args.parser
-    if html_parser == 'lxml' and not haslxml():
-        print " Warning: lxml not available, falling back to built-in 'html.parser' (see -q option), this may cause problems on Python < 2.7.3"
-        html_parser = 'html.parser'
-    else:
-        pass
+    if html_parser == "html.parser" and sys.version_info < (2,7,3):
+        print " Warning: built-in 'html.parser' may cause problems on Python < 2.7.3"
 
     print "Coursera-dl v%s (%s)" % (_version.__version__,html_parser)
 

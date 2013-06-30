@@ -1,3 +1,6 @@
+* 1.4.10 - Sun 30 Jun
+	- made html.parser the default
+
 * 1.4.9 - Wed 19 Jun
 	- small bug/crash fixes
 	- long filename trimming on windows
