@@ -304,7 +304,7 @@ class CourseraDownloader(object):
                 dl = False
 
         try:
-           if dl:
+            if dl:
                 self.browser.retrieve(url,filepath,timeout=self.TIMEOUT)
         except Exception as e:
             print "Failed to download url %s to %s: %s" % (url,filepath,e)
@@ -592,16 +592,20 @@ def find_renamed(filename, size):
     name, ext = path.splitext(name)
     name = normalize_string(name)
 
-    files = os.listdir(fpath)
-    for f in files:
-        fname, fext = path.splitext(f)
-        fname = normalize_string(fname)
-        if fname == name and fext == ext:
-            fullname = os.path.join(fpath, f)
-            if path.getsize(fullname) == size:
-                return fullname, f
+    if not path.exists(fpath):
+        return None, None
 
-    return None
+    files = os.listdir(fpath)
+    if files:
+        for f in files:
+            fname, fext = path.splitext(f)
+            fname = normalize_string(fname)
+            if fname == name and fext == ext:
+                fullname = os.path.join(fpath, f)
+                if path.getsize(fullname) == size:
+                    return fullname, f
+
+    return None, None
 
 
 def main():
