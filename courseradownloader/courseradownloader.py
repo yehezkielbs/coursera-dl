@@ -295,6 +295,13 @@ class CourseraDownloader(object):
                 # missing or invalid content length
                 # assume all is ok...
                 dl = False
+        else:
+            # Detect renamed files
+            existing, short = find_renamed(filepath, clen)
+            if existing:
+                print '    - "%s" seems to be a copy of "%s", renaming existing file' % (fname, short)
+                os.rename(existing, filepath)
+                dl = False
 
         try:
            if dl:
@@ -574,6 +581,28 @@ def get_netrc_creds():
             pass
 
     return creds
+
+
+def normalize_string(str):
+    return ''.join(x for x in str if x not in ' \t-_()"01234567890').lower()
+
+
+def find_renamed(filename, size):
+    fpath, name = path.split(filename)
+    name, ext = path.splitext(name)
+    name = normalize_string(name)
+
+    files = os.listdir(fpath)
+    for f in files:
+        fname, fext = path.splitext(f)
+        fname = normalize_string(fname)
+        if fname == name and fext == ext:
+            fullname = os.path.join(fpath, f)
+            if path.getsize(fullname) == size:
+                return fullname, f
+
+    return None
+
 
 def main():
     # parse the commandline arguments
