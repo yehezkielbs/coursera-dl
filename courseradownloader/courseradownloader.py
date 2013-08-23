@@ -35,7 +35,7 @@ class CourseraDownloader(object):
     LECTURE_URL = BASE_URL + '/lecture/index'
     QUIZ_URL =    BASE_URL + '/quiz/index'
     AUTH_URL =    BASE_URL + "/auth/auth_redirector?type=login&subtype=normal"
-    LOGIN_URL =   "https://www.coursera.org/maestro/api/user/login"
+    LOGIN_URL =   "https://accounts.coursera.org/api/v1/login"
 
     #see http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
     DEFAULT_PARSER = "html.parser"
@@ -84,7 +84,6 @@ class CourseraDownloader(object):
         csrfcookie = [c for c in cookies if c.name == "csrf_token"]
         if not csrfcookie: raise Exception("Failed to find csrf cookie")
         csrftoken = csrfcookie[0].value
-
         opener.close()
 
         # call the authenticator url:
@@ -94,11 +93,11 @@ class CourseraDownloader(object):
                                     urllib2.HTTPSHandler())
 
         opener.addheaders.append(('Cookie', 'csrftoken=%s' % csrftoken))
-        opener.addheaders.append(('Referer', 'https://www.coursera.org'))
+        opener.addheaders.append(('Referer', 'https://accounts.coursera.org/signin'))
         opener.addheaders.append(('X-CSRFToken', csrftoken))
         req = urllib2.Request(self.LOGIN_URL)
 
-        data = urllib.urlencode({'email_address': self.username,'password': self.password})
+        data = urllib.urlencode({'email': self.username,'password': self.password})
         req.add_data(data)
 
         try:
@@ -108,7 +107,7 @@ class CourseraDownloader(object):
                 raise Exception("Invalid username or password")
 
         # check if we managed to login
-        sessionid = [c.name for c in cj if c.name == "sessionid"]
+        sessionid = [c.name for c in cj if c.name == "CAUTH"]
         if not sessionid:
             raise Exception("Failed to authenticate as %s" % self.username)
 

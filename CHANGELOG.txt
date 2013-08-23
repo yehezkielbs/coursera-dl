@@ -1,3 +1,6 @@
+* 1.4.11 - Fri 23 Aug
+	- update to new coursera authentication details
+
 * 1.4.10 - Sun 30 Jun
 	- made html.parser the default
 
