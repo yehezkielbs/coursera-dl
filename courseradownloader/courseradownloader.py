@@ -13,9 +13,11 @@ import cookielib
 from bs4 import BeautifulSoup
 import tempfile
 from os import path
+import tarfile
 import platform
 import sys
 import _version
+import shutil
 
 class CourseraDownloader(object):
     """
@@ -43,7 +45,7 @@ class CourseraDownloader(object):
     # how long to try to open a URL before timing out
     TIMEOUT=60.0
 
-    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None, max_path_len=None):
+    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None, max_path_len=None,gzip_courses = False):
         self.username = username
         self.password = password
         self.parser = parser
@@ -56,6 +58,7 @@ class CourseraDownloader(object):
         self.browser = None
         self.proxy = proxy
         self.max_path_len = max_path_len
+        self.gzip_courses = gzip_courses
 
     def login(self,className):
         """
@@ -308,7 +311,7 @@ class CourseraDownloader(object):
         except Exception as e:
             print "Failed to download url %s to %s: %s" % (url,filepath,e)
 
-    def download_course(self,cname,dest_dir=".",reverse_sections=False):
+    def download_course(self,cname,dest_dir=".",reverse_sections=False,gzip_courses=False):
         """
         Download all the contents (quizzes, videos, lecture notes, ...) of the course to the given destination directory (defaults to .)
         """
@@ -397,6 +400,15 @@ class CourseraDownloader(object):
                        self.download(classResource,target_dir=clsdir,target_fname=tfname)
                     except Exception as e:
                        print "    - failed: ",classResource,e
+        if gzip_courses:
+            tar_file_name = cname + ".tar.gz"
+            print "Compressing and storing as " + tar_file_name
+            tar = tarfile.open(os.path.join(dest_dir, tar_file_name),'w:gz')
+            tar.add(os.path.join(dest_dir, cname),arcname=cname)
+            tar.close()
+            print "Compression complete. Cleaning up."
+            shutil.rmtree(os.path.join(dest_dir, cname))
+
 
 
 def filename_from_header(header):
@@ -622,6 +634,7 @@ def main():
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
     parser.add_argument("--trim-path", dest='trim_path', action='store_true', default=True, help='Trim path names to fit OS constraints (windows only)')
+    parser.add_argument("--gz", dest='gzip_courses',action="store_true",default=False, help='Tarball courses for archival storage (does not leave folders behind)')
     args = parser.parse_args()
 
     # check the parser
@@ -655,7 +668,7 @@ def main():
             pass   
  
     # instantiate the downloader class
-    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles,max_path_len=max_path_len)
+    d = CourseraDownloader(username,password,proxy=args.proxy,parser=html_parser,ignorefiles=args.ignorefiles,max_path_len=max_path_len,gzip_courses=args.gzip_courses)
 
     # authenticate, only need to do this once but need a classaname to get hold
     # of the csrf token, so simply pass the first one
@@ -666,7 +679,7 @@ def main():
     for i,cn in enumerate(args.course_names,start=1):
         print
         print "Course %s of %s" % (i,len(args.course_names))
-        d.download_course(cn,dest_dir=args.dest_dir,reverse_sections=args.reverse)
+        d.download_course(cn,dest_dir=args.dest_dir,reverse_sections=args.reverse,gzip_courses = args.gzip_courses)
 
 if __name__ == '__main__':
     main()
