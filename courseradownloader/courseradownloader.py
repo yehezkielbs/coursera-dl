@@ -173,7 +173,7 @@ class CourseraDownloader(object):
             classNames = []
             for li in lis:
                 # the name of this lecture/class
-                className = li.a.text.strip()
+                className = li.a.find(text=True).strip()
 
                 # Many class names have the following format: 
                 #   "Something really cool (12:34)"
