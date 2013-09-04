@@ -43,7 +43,13 @@ class CourseraDownloader(object):
     # how long to try to open a URL before timing out
     TIMEOUT=60.0
 
-    def __init__(self,username,password,proxy=None,parser=DEFAULT_PARSER,ignorefiles=None, max_path_len=None):
+    def __init__(self,username,
+                        password,
+                        proxy=None,
+                        parser=DEFAULT_PARSER,
+                        ignorefiles=None, 
+                        max_path_len=None):
+
         self.username = username
         self.password = password
         self.parser = parser
@@ -59,9 +65,8 @@ class CourseraDownloader(object):
 
     def login(self,className):
         """
-        Automatically generate a cookie file for the coursera site.
+        Login into coursera and obtain the necessary session cookies.
         """
-        #TODO: use proxy here
         hn,fn = tempfile.mkstemp()
         cookies = cookielib.LWPCookieJar()
         handlers = [
@@ -69,6 +74,12 @@ class CourseraDownloader(object):
             urllib2.HTTPSHandler(),
             urllib2.HTTPCookieProcessor(cookies)
         ]
+
+        # prepend a proxy handler if defined
+        if(self.proxy):
+            proxy = urllib2.ProxyHandler({'http': self.proxy})
+            handlers = [proxy] + handlers
+
         opener = urllib2.build_opener(*handlers)
 
         url = self.lecture_url_from_name(className)
