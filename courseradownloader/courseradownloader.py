@@ -48,7 +48,7 @@ class CourseraDownloader(object):
                         proxy=None,
                         parser=DEFAULT_PARSER,
                         ignorefiles=None, 
-                        max_path_len=None):
+                        max_path_part_len=None):
 
         self.username = username
         self.password = password
@@ -61,7 +61,7 @@ class CourseraDownloader(object):
 
         self.browser = None
         self.proxy = proxy
-        self.max_path_len = max_path_len
+        self.max_path_part_len = max_path_part_len
 
     def login(self,className):
         """
@@ -148,6 +148,14 @@ class CourseraDownloader(object):
         """Given the name of a course, return the video lecture url"""
         return self.LECTURE_URL % course_name
 
+    #TODO: simple hack, something more elaborate needed
+    def trim_path_part(self,s):
+        mppl = self.max_path_part_len
+        if mppl and len(s) > mppl:
+            return s[:mppl-3] + "..."
+        else:
+            return s
+
     def get_downloadable_content(self,course_url):
         """
         Given the video lecture URL of the course, return a list of all
@@ -174,6 +182,7 @@ class CourseraDownloader(object):
             # title of this weeks' classes
             h3 = week.findNext('h3')
             weekTopic = sanitise_filename(h3.text)
+            weekTopic = self.trim_path_part(weekTopic)
 
             # get all the classes for the week
             ul = week.next_sibling
@@ -195,6 +204,7 @@ class CourseraDownloader(object):
                     className = head  + "-" + tail
 
                 className = sanitise_filename(className)
+                className = self.trim_path_part(className)
 
                 # collect all the resources for this class (ppt, pdf, mov, ..)
                 classResources = li.find('div', {'class':'course-lecture-item-resource'})
@@ -278,9 +288,6 @@ class CourseraDownloader(object):
             return
 
         filepath = path.join(target_dir,fname)
-
-        if self.max_path_len:
-            filepath = trim_path(filepath,max_path_len=self.max_path_len)
 
         dl = True
         if path.exists(filepath):
@@ -483,7 +490,8 @@ def main():
                         default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
-    parser.add_argument("--trim-path", dest='trim_path', action='store_true', default=True, help='Trim path names to fit OS constraints (windows only)')
+    parser.add_argument("-mppl", dest='mppl', type=int, default=100,
+                        help='Maximum length of filenames/dirs in a path (windows only)')
     args = parser.parse_args()
 
     # check the parser
@@ -507,14 +515,15 @@ def main():
             password = getpass.getpass()
 
     # should we be trimming paths?
-    max_path_len = None
-    if args.trim_path:
+    #TODO: this is a simple hack, something more elaborate needed
+    mppl = None
+    if args.mppl:
         if platform.system() == "Windows":
-            max_path_len = 257
-            print "Maximum path length set to %s" % max_path_len
+            mppl = 90
+            print "Maximum length of a path component set to %s" % mppl
         else:
             # linux max path length is typically around 4060 so assume thats ok
-            pass   
+            pass
  
     # instantiate the downloader class
     d = CourseraDownloader(
@@ -523,7 +532,7 @@ def main():
                            proxy=args.proxy,
                            parser=html_parser,
                            ignorefiles=args.ignorefiles,
-                           max_path_len=max_path_len
+                           max_path_part_len=mppl
                           )
 
     # authenticate, only need to do this once but need a classaname to get hold
