@@ -52,7 +52,7 @@ class CourseraDownloader(object):
                         parser=DEFAULT_PARSER,
                         ignorefiles=None, 
                         max_path_part_len=None,
-                        gzip_courses = FALSE):
+                        gzip_courses = False):
 
         self.username = username
         self.password = password
@@ -504,7 +504,8 @@ def main():
                         default=False, help="download and save the sections in reverse order")
     parser.add_argument('course_names', nargs="+", metavar='<course name>',
                         type=str, help='one or more course names from the url (e.g., comnets-2012-001)')
-    parser.add_argument("--gz", dest='gzip_courses',action="store_true",default=False, help='Tarball courses for archival storage (does not leave folders behind)')
+    parser.add_argument("--gz",
+                        dest='gzip_courses',action="store_true",default=False,help='Tarball courses for archival storage (folders get deleted)')
     parser.add_argument("-mppl", dest='mppl', type=int, default=100,
                         help='Maximum length of filenames/dirs in a path (windows only)')
     args = parser.parse_args()
