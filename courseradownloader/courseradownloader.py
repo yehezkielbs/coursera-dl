@@ -52,7 +52,8 @@ class CourseraDownloader(object):
                         parser=DEFAULT_PARSER,
                         ignorefiles=None, 
                         max_path_part_len=None,
-                        gzip_courses = False):
+                        gzip_courses=False,
+                        wk_pattern=None):
 
         self.username = username
         self.password = password
@@ -67,6 +68,12 @@ class CourseraDownloader(object):
         self.proxy = proxy
         self.max_path_part_len = max_path_part_len
         self.gzip_courses = gzip_courses
+        
+        try:
+            self.wk_pattern = re.compile(wk_pattern) if wk_pattern else None
+        except Exception as e:
+            print "Invalid regex pattern". e
+            exit()
 
     def login(self,className):
         """
@@ -388,6 +395,11 @@ class CourseraDownloader(object):
         # now download the actual content (video's, lecture notes, ...)
         for j, (weeklyTopic, weekClasses) in enumerate(weeklyTopics,start=1):
 
+
+            if self.wk_pattern and self.wk_pattern.match(weeklyTopic) is None:
+                print " - skipping %s, as it does not match the passed regex" % weeklyTopic
+                continue
+
             # add a numeric prefix to the week directory name to ensure chronological ordering
             wkdirname = str(j).zfill(2) + " - " + weeklyTopic
 
@@ -508,6 +520,8 @@ def main():
                         dest='gzip_courses',action="store_true",default=False,help='Tarball courses for archival storage (folders get deleted)')
     parser.add_argument("-mppl", dest='mppl', type=int, default=100,
                         help='Maximum length of filenames/dirs in a path (windows only)')
+    parser.add_argument("-wp", dest='wkpattern', type=str, default=None,
+                        help="Only download modules/weeks matching this pattern (see: http://docs.python.org/2/library/re.html)")
     args = parser.parse_args()
 
     # check the parser
@@ -549,7 +563,8 @@ def main():
                            parser=html_parser,
                            ignorefiles=args.ignorefiles,
                            max_path_part_len=mppl,
-                           gzip_courses=args.gzip_courses
+                           gzip_courses=args.gzip_courses,
+                           wk_pattern=args.wkpattern
                           )
 
     # authenticate, only need to do this once but need a classaname to get hold
