@@ -1,5 +1,5 @@
 * 1.5.1 - 
-	- regex commandline parameter for selecting weeks
+	- commandline parameter for selecting weeks
 
 * 1.5 - Fri 13 Sep
 	- code cleanups
