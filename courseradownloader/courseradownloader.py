@@ -335,7 +335,7 @@ class CourseraDownloader(object):
         fn = os.path.join(course_dir, cname + '-about.json')
 
         # get the base course name (without the -00x suffix)
-        base_name = cname[:cname.rindex('-')]
+        base_name = re.split('(-[0-9]+)', cname)[0]
 
         # get the json
         about_url = self.ABOUT_URL % base_name
