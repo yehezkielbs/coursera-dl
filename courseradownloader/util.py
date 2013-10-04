@@ -70,7 +70,7 @@ def sanitise_filename(fileName):
     fn = unicodedata.normalize('NFKD', fn)
 
     # encode it into ascii, again ignoring problematic chars
-    s = fn.encode('ascii', 'ignore')
+    s = fn.encode('ascii', 'ignore') if PY2 else fn
 
     # remove any characters not in the whitelist
     s = re.sub('[^\w\-\(\)\[\]\., ]', '', s).strip()
