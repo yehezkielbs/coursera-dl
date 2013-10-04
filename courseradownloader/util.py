@@ -11,7 +11,8 @@ def filename_from_header(header):
         pattern = 'attachment; filename="(.*?)"'
         m = re.search(pattern, cd)
         g = m.group(1)
-        if ("%" in g): g = urllib2.unquote(g)
+        if "%" in g:
+            g = unquote(g)
         return sanitise_filename(g)
     except Exception:
         return ''
