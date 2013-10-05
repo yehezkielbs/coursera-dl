@@ -136,8 +136,9 @@ class CourseraDownloader(object):
         for i in range(retries):
             try:
                 r = self.session.get(url, **kwargs)
-            except requests.exceptions.RequestException as e:
-                print_(" Warning: Retrying to connect url:%s" % url)
+                r.raise_for_status()
+            except Exception as e:
+                print_("Warning: Retrying to connect url:%s" % url)
             else:
                 return r
         raise e
@@ -147,7 +148,6 @@ class CourseraDownloader(object):
         Get the headers
         """
         r = self.get_response(url, stream=True)
-        r.raise_for_status()
         headers = r.headers
         r.close()
         return headers
@@ -157,7 +157,6 @@ class CourseraDownloader(object):
         Get the content
         """
         r = self.get_response(url)
-        r.raise_for_status()
         page = r.content
         r.close()
         return page
@@ -167,7 +166,6 @@ class CourseraDownloader(object):
         Get the json data
         """
         r = self.get_response(url)
-        r.raise_for_status()
         data = r.json()
         r.close()
         return data
@@ -334,7 +332,6 @@ class CourseraDownloader(object):
             if dl:
                 print_('    - Downloading', fname)
                 response = self.get_response(url, stream=True)
-                response.raise_for_status()
                 full_size = clen
                 done_size = 0
                 slice_size = 524288 if full_size > 524288 else full_size
