@@ -334,7 +334,7 @@ class CourseraDownloader(object):
                 response = self.get_response(url, stream=True)
                 full_size = clen
                 done_size = 0
-                slice_size = 524288 if full_size > 524288 else full_size
+                slice_size = 524288  # 512KB buffer
                 last_time = time.time()
                 with open(filepath, 'wb') as f:
                     for data in response.iter_content(slice_size):
