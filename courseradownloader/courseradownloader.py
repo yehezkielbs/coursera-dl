@@ -138,7 +138,8 @@ class CourseraDownloader(object):
                 r = self.session.get(url, **kwargs)
                 r.raise_for_status()
             except Exception as e:
-                print_("Warning: Retrying to connect url:%s" % url)
+                # print_("Warning: Retrying to connect url:%s" % url)
+                pass
             else:
                 return r
         raise e
