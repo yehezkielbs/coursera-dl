@@ -13,11 +13,11 @@ Some people have asked if they could donate something. If you wish you can do so
 Installation
 ------------
 
-Make sure you have installed [Python][] 2.7 and [pip][].
+Make sure you have installed [Python][] and [pip][].
 
 Then simply run: pip install coursera-dl
 
-This will create a coursera-dl script in /usr/local/bin (linux) or
+Depending on your setup this will create a coursera-dl script in /usr/local/bin (linux) or
 c:\\Python2.7\\Scripts (windows)
 
 (to upgrade use pip install --upgrade)
