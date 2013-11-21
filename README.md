@@ -15,17 +15,17 @@ Installation
 
 Make sure you have installed [Python][] and [pip][].
 
-Then simply run: pip install coursera-dl
+Then simply run: `pip install coursera-dl`
 
-Depending on your setup this will create a coursera-dl script in /usr/local/bin (linux) or
-c:\\Python2.7\\Scripts (windows)
+Depending on your setup this will create a `coursera-dl` script in `/usr/local/bin` (linux) or
+`c:\\Python2.7\\Scripts` (windows)
 
-(to upgrade use pip install --upgrade)
+(to upgrade use `pip install --upgrade`)
 
 Usage
 -----
 
-See: coursera-dl -h
+See: `coursera-dl -h`
 
 Example usage:
 
@@ -33,8 +33,8 @@ Example usage:
 coursera-dl -u myusername -p mypassword -d /my/coursera/courses/ algo-2012-001 ml-2012-002
 </pre>
 
-Note: you can also specify your login and password in .netrc file in your home directory.
-Just add this line to ~/.netrc
+Note: you can also specify your login and password in `.netrc` file in your home directory.
+Just add this line to `~/.netrc`
 <pre>
 machine coursera-dl login myusername password mypassword
 </pre>
