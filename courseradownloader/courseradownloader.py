@@ -277,6 +277,8 @@ class CourseraDownloader(object):
         Download the url to the given filename
         """
 
+        url = url.replace("_fr&format=", "_en&format=")
+
         # get the headers
         headers = self.get_headers(url)
 
